@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block title %}Analyze Transactions - AI Fraud Detection System{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h2 mb-0"><i class="fas fa-microscope me-2"></i>Analyze Transactions</h1>
+        <p class="text-muted">Review and analyze your transaction data</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card bg-dark mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-4">Transaction Data Preview</h5>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                {% for column in data[0].keys() %}
+                                <th>{{ column }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in data %}
+                            <tr>
+                                {% for column, value in row.items() %}
+                                <td>{{ value }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    This is a preview of the first 10 rows of your data. The full dataset will be analyzed for fraud detection.
+                </div>
+            </div>
+        </div>
+        
+        <div class="card bg-dark">
+            <div class="card-body">
+                <h5 class="card-title mb-4">Analysis Options</h5>
+                
+                <form method="POST" action="{{ url_for('analyze') }}">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-dark border">
+                                <div class="card-body">
+                                    <h6 class="card-title">Detection Model</h6>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="model_type" id="randomForest" value="random_forest" checked>
+                                        <label class="form-check-label" for="randomForest">
+                                            Random Forest
+                                            <small class="text-muted d-block">Best for general fraud detection with high accuracy</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="radio" name="model_type" id="isolationForest" value="isolation_forest">
+                                        <label class="form-check-label" for="isolationForest">
+                                            Isolation Forest
+                                            <small class="text-muted d-block">Best for detecting anomalies and outliers</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card bg-dark border">
+                                <div class="card-body">
+                                    <h6 class="card-title">Sensitivity Settings</h6>
+                                    <label for="sensitivitySlider" class="form-label">Detection Sensitivity</label>
+                                    <input type="range" class="form-range" min="0" max="100" value="80" id="sensitivitySlider" name="sensitivity">
+                                    <div class="d-flex justify-content-between mt-1">
+                                        <small class="text-muted">More Permissive</small>
+                                        <small class="text-muted">More Strict</small>
+                                    </div>
+                                    <small class="text-muted d-block mt-2">
+                                        Higher sensitivity may flag more transactions as potentially fraudulent
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('upload') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Upload
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-play me-2"></i>Start Analysis
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

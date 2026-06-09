@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Report - AI Fraud Detection System{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h2 mb-0"><i class="fas fa-file-alt me-2"></i>Create Report</h1>
+        <p class="text-muted">Generate a new fraud analysis report</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card bg-dark">
+            <div class="card-body">
+                <h5 class="card-title mb-4">Report Details</h5>
+                
+                <form method="POST" action="{{ url_for('create_report') }}">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Report Title</label>
+                        <input type="text" class="form-control" id="title" name="title" required placeholder="e.g., Monthly Fraud Analysis">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="Enter a brief description of this report..."></textarea>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="start_date" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="end_date" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" required>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('reports') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Reports
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-file-alt me-2"></i>Generate Report
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card bg-dark h-100">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Report Information</h5>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Reports analyze your transaction data for the specified date range and generate insights about potential fraud patterns.
+                </div>
+                
+                <h6 class="mt-4">Your report will include:</h6>
+                <ul class="list-group list-group-flush mb-4 bg-transparent">
+                    <li class="list-group-item bg-transparent"><i class="fas fa-check-circle me-2 text-success"></i>Fraud statistics summary</li>
+                    <li class="list-group-item bg-transparent"><i class="fas fa-check-circle me-2 text-success"></i>Fraud trends over time</li>
+                    <li class="list-group-item bg-transparent"><i class="fas fa-check-circle me-2 text-success"></i>Merchant category analysis</li>
+                    <li class="list-group-item bg-transparent"><i class="fas fa-check-circle me-2 text-success"></i>Detailed transaction list</li>
+                    <li class="list-group-item bg-transparent"><i class="fas fa-check-circle me-2 text-success"></i>Risk assessment metrics</li>
+                </ul>
+                
+                <div class="text-center mt-4">
+                    <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-gradient text-white rounded-circle mb-3" style="width: 60px; height: 60px;">
+                        <i class="fas fa-chart-pie fa-2x"></i>
+                    </div>
+                    <p class="text-muted">Select a meaningful date range to get the most insightful analysis</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set default date range (last 30 days)
+        const today = new Date();
+        
+        const endDate = today.toISOString().split('T')[0];
+        document.getElementById('end_date').value = endDate;
+        
+        const startDate = new Date(today);
+        startDate.setDate(today.getDate() - 30);
+        document.getElementById('start_date').value = startDate.toISOString().split('T')[0];
+        
+        // Validate date range
+        const startDateInput = document.getElementById('start_date');
+        const endDateInput = document.getElementById('end_date');
+        
+        function validateDateRange() {
+            const start = new Date(startDateInput.value);
+            const end = new Date(endDateInput.value);
+            
+            if (start > end) {
+                endDateInput.setCustomValidity('End date must be after start date');
+            } else {
+                endDateInput.setCustomValidity('');
+            }
+        }
+        
+        startDateInput.addEventListener('change', validateDateRange);
+        endDateInput.addEventListener('change', validateDateRange);
+    });
+</script>
+{% endblock %}

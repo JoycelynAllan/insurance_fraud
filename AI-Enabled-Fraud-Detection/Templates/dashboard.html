@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - AI Fraud Detection System{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h2 mb-0"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h1>
+        <p class="text-muted">Welcome back, {{ current_user.username }}!</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('upload') }}" class="btn btn-primary">
+            <i class="fas fa-upload me-2"></i>Upload Transactions
+        </a>
+    </div>
+</div>
+
+<!-- Key Metrics -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0">Total Transactions</h5>
+                    <i class="fas fa-exchange-alt fa-2x opacity-50"></i>
+                </div>
+                <h2 class="display-5 fw-bold mt-2">{{ stats.total_transactions }}</h2>
+                <p class="card-text">Processed transactions</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-danger h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0">Fraud Detected</h5>
+                    <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+                </div>
+                <h2 class="display-5 fw-bold mt-2">{{ stats.fraud_transactions }}</h2>
+                <p class="card-text">{{ "%.2f"|format(stats.fraud_percentage) }}% of all transactions</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-warning h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0">Fraud Amount</h5>
+                    <i class="fas fa-dollar-sign fa-2x opacity-50"></i>
+                </div>
+                <h2 class="display-5 fw-bold mt-2">${{ "%.2f"|format(stats.fraud_amount) }}</h2>
+                <p class="card-text">Total fraudulent amount</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-info h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0">Avg. Fraud Value</h5>
+                    <i class="fas fa-chart-line fa-2x opacity-50"></i>
+                </div>
+                <h2 class="display-5 fw-bold mt-2">${{ "%.2f"|format(stats.avg_fraud_amount) }}</h2>
+                <p class="card-text">Average fraudulent transaction</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card bg-dark">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Transactions Over Time</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="transactionsChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card bg-dark">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Fraud Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="fraudDistributionChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Category Analysis & Recent Fraud -->
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card bg-dark">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Fraud by Merchant Category</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="categoryChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card bg-dark">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recent Fraudulent Transactions</h5>
+                <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Merchant</th>
+                                <th>Amount</th>
+                                <th>Probability</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if fraud_transactions %}
+                                {% for transaction in fraud_transactions %}
+                                <tr>
+                                    <td>{{ transaction.timestamp.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ transaction.merchant }}</td>
+                                    <td>${{ "%.2f"|format(transaction.amount) }}</td>
+                                    <td>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-danger" role="progressbar" 
+                                                style="width: {{ transaction.fraud_probability * 100 }}%"
+                                                aria-valuenow="{{ transaction.fraud_probability * 100 }}" 
+                                                aria-valuemin="0" aria-valuemax="100"></div>
+                                        </div>
+                                        <small class="text-muted">{{ "%.1f"|format(transaction.fraud_probability * 100) }}%</small>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('transaction_detail', transaction_id=transaction.id) }}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <p class="text-muted mb-0">No fraudulent transactions detected yet.</p>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+    // Pass data from Flask to JavaScript
+    const timeSeriesData = {{ time_series|tojson }};
+    const stats = {{ stats|tojson }};
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Transactions Over Time Chart
+        const transactionsCtx = document.getElementById('transactionsChart').getContext('2d');
+        new Chart(transactionsCtx, {
+            type: 'line',
+            data: {
+                labels: timeSeriesData.labels,
+                datasets: [
+                    {
+                        label: 'All Transactions',
+                        data: timeSeriesData.total_counts,
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Fraudulent Transactions',
+                        data: timeSeriesData.fraud_counts,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Transactions'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Fraud Distribution Chart
+        const fraudDistributionCtx = document.getElementById('fraudDistributionChart').getContext('2d');
+        new Chart(fraudDistributionCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Legitimate', 'Fraudulent'],
+                datasets: [{
+                    data: [
+                        stats.total_transactions - stats.fraud_transactions, 
+                        stats.fraud_transactions
+                    ],
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 99, 132, 0.7)',
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 99, 132, 1)',
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Category Chart
+        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+        const categories = Object.keys(stats.merchant_categories || {}).slice(0, 5);
+        const fraudRates = categories.map(cat => stats.merchant_categories[cat].fraud_rate);
+        
+        new Chart(categoryCtx, {
+            type: 'bar',
+            data: {
+                labels: categories,
+                datasets: [{
+                    label: 'Fraud Rate (%)',
+                    data: fraudRates,
+                    backgroundColor: 'rgba(255, 159, 64, 0.7)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Fraud Rate (%)'
+                        },
+                        max: 100
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Merchant Category'
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

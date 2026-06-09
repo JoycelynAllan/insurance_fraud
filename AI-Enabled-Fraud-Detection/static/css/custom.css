@@ -1,0 +1,204 @@
+/**
+ * Custom styles for AI Fraud Detection System
+ * Using Bootstrap dark theme as a base
+ */
+
+/* General styles */
+body {
+    overflow-x: hidden;
+}
+
+/* Custom transitions */
+.fade {
+    transition: opacity 0.3s ease;
+}
+
+/* Upload page styles */
+.upload-area {
+    border: 2px dashed rgba(108, 117, 125, 0.5);
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.upload-area.highlight {
+    border-color: #0d6efd;
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+.upload-area:hover {
+    border-color: rgba(108, 117, 125, 0.8);
+    background-color: rgba(108, 117, 125, 0.05);
+}
+
+/* Chart containers */
+.chart-container {
+    position: relative;
+    min-height: 250px;
+}
+
+/* Dashboard stats */
+.stat-card {
+    transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    opacity: 0.7;
+}
+
+/* Custom progress bar for fraud probability */
+.fraud-progress {
+    height: 8px;
+    border-radius: 4px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+/* Timeline in the "How it works" section */
+.timeline {
+    position: relative;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    bottom: 20px;
+    left: 50%;
+    width: 4px;
+    background-color: rgba(108, 117, 125, 0.2);
+    transform: translateX(-50%);
+    z-index: 0;
+    display: none;
+}
+
+@media (min-width: 768px) {
+    .timeline::before {
+        display: block;
+    }
+}
+
+/* Print styles for reports */
+@media print {
+    nav, footer, .btn, #printReport, #downloadPdf, #exportTransactions {
+        display: none !important;
+    }
+    
+    body {
+        background-color: white !important;
+        color: black !important;
+    }
+    
+    .card {
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+    }
+    
+    .card-body {
+        background-color: white !important;
+        color: black !important;
+    }
+    
+    .text-muted {
+        color: #666 !important;
+    }
+    
+    /* Ensure charts are visible */
+    canvas {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+    
+    /* Add page breaks where needed */
+    .page-break-after {
+        page-break-after: always;
+    }
+}
+
+/* Transaction detail page styles */
+.risk-factor-card {
+    transition: transform 0.3s ease;
+}
+
+.risk-factor-card:hover {
+    transform: scale(1.02);
+}
+
+/* Custom alert container for dynamic alerts */
+#alert-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+    max-width: 350px;
+}
+
+#alert-container .alert {
+    margin-bottom: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading overlay for async operations */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1060;
+}
+
+.loading-spinner {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Custom badge styles */
+.badge.badge-large {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+}
+
+/* Fraud probability color scale */
+.fraud-probability-very-low {
+    background-color: #198754; /* Bootstrap success color */
+}
+
+.fraud-probability-low {
+    background-color: #20c997; /* Bootstrap info-emphasis color */
+}
+
+.fraud-probability-medium {
+    background-color: #fd7e14; /* Bootstrap warning color */
+}
+
+.fraud-probability-high {
+    background-color: #dc3545; /* Bootstrap danger color */
+}
+
+.fraud-probability-very-high {
+    background-color: #dc3545; /* Bootstrap danger color, darker shade */
+}
+
+/* Footer styles */
+.footer {
+    margin-top: auto;
+}
+
+/* Hover effect for transaction rows */
+.table-hover tbody tr {
+    transition: background-color 0.15s ease-in-out;
+}
+
+/* Fix for chart responsiveness */
+canvas.chart-canvas {
+    max-width: 100%;
+}

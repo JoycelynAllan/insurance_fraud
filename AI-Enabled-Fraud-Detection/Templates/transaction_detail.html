@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+
+{% block title %}Transaction Details - AI Fraud Detection System{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h2 mb-0">
+            <i class="fas fa-receipt me-2"></i>Transaction Details
+        </h1>
+        <p class="text-muted">Detailed information about transaction #{{ transaction.transaction_id }}</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Transaction Summary Card -->
+    <div class="col-lg-8">
+        <div class="card bg-dark mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Transaction Summary</h5>
+                <span class="badge {% if transaction.is_fraud %}bg-danger{% else %}bg-success{% endif %} px-3 py-2">
+                    {% if transaction.is_fraud %}
+                        <i class="fas fa-exclamation-triangle me-2"></i>Fraudulent
+                    {% else %}
+                        <i class="fas fa-check-circle me-2"></i>Legitimate
+                    {% endif %}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th class="text-muted">Transaction ID:</th>
+                                <td>{{ transaction.transaction_id }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Amount:</th>
+                                <td>${{ "%.2f"|format(transaction.amount) }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Date & Time:</th>
+                                <td>{{ transaction.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Merchant:</th>
+                                <td>{{ transaction.merchant }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Category:</th>
+                                <td>{{ transaction.merchant_category or 'Unknown' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th class="text-muted">Location:</th>
+                                <td>{{ transaction.location or 'Unknown' }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">IP Address:</th>
+                                <td>{{ transaction.ip_address or 'Unknown' }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Device ID:</th>
+                                <td>{{ transaction.device_id or 'Unknown' }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Created:</th>
+                                <td>{{ transaction.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Description:</th>
+                                <td>{{ transaction.description or 'No description available' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Transaction Analysis Card -->
+        <div class="card bg-dark">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Fraud Analysis</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6 class="mb-3">Fraud Probability</h6>
+                        <div class="d-flex align-items-center">
+                            <div class="progress flex-grow-1" style="height: 8px;">
+                                <div class="progress-bar {% if transaction.fraud_probability > 0.7 %}bg-danger{% elif transaction.fraud_probability > 0.4 %}bg-warning{% else %}bg-success{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ transaction.fraud_probability * 100 }}%" 
+                                     aria-valuenow="{{ transaction.fraud_probability * 100 }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100"></div>
+                            </div>
+                            <span class="ms-3 h4 mb-0">{{ "%.1f"|format(transaction.fraud_probability * 100) }}%</span>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge {% if transaction.fraud_probability > 0.7 %}bg-danger{% elif transaction.fraud_probability > 0.4 %}bg-warning{% else %}bg-success{% endif %} me-2">
+                                {% if transaction.fraud_probability > 0.7 %}
+                                    High Risk
+                                {% elif transaction.fraud_probability > 0.4 %}
+                                    Medium Risk
+                                {% else %}
+                                    Low Risk
+                                {% endif %}
+                            </span>
+                            <small class="text-muted">Risk level based on model analysis</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="mb-3">Flag Status</h6>
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="flagStatus" {% if transaction.flagged %}checked{% endif %} disabled>
+                                <label class="form-check-label" for="flagStatus">
+                                    {% if transaction.flagged %}Flagged for Review{% else %}Not Flagged{% endif %}
+                                </label>
+                            </div>
+                        </div>
+                        {% if transaction.flagged %}
+                        <div class="alert alert-warning py-2">
+                            <small><strong>Reason:</strong> {{ transaction.flagged_reason }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <h6 class="mb-3">Risk Factors</h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="card bg-dark border h-100">
+                            <div class="card-body">
+                                <h6 class="card-title d-flex align-items-center">
+                                    <i class="fas fa-money-bill-wave me-2 text-primary"></i>
+                                    Amount
+                                </h6>
+                                {% if transaction.amount > 1000 %}
+                                <span class="badge bg-warning">High Value Transaction</span>
+                                <small class="text-muted d-block mt-1">Transactions over $1,000 have higher fraud risk</small>
+                                {% else %}
+                                <span class="badge bg-success">Normal Value</span>
+                                <small class="text-muted d-block mt-1">Transaction amount within normal range</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-dark border h-100">
+                            <div class="card-body">
+                                <h6 class="card-title d-flex align-items-center">
+                                    <i class="fas fa-map-marker-alt me-2 text-danger"></i>
+                                    Location
+                                </h6>
+                                {% if transaction.location %}
+                                <span class="badge bg-info">Known Location</span>
+                                <small class="text-muted d-block mt-1">{{ transaction.location }}</small>
+                                {% else %}
+                                <span class="badge bg-warning">Unknown Location</span>
+                                <small class="text-muted d-block mt-1">Missing location data increases risk</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-dark border h-100">
+                            <div class="card-body">
+                                <h6 class="card-title d-flex align-items-center">
+                                    <i class="fas fa-clock me-2 text-warning"></i>
+                                    Timing
+                                </h6>
+                                {% if transaction.timestamp.hour < 6 or transaction.timestamp.hour > 22 %}
+                                <span class="badge bg-warning">Unusual Hours</span>
+                                <small class="text-muted d-block mt-1">Transaction outside normal business hours</small>
+                                {% else %}
+                                <span class="badge bg-success">Normal Hours</span>
+                                <small class="text-muted d-block mt-1">Transaction during normal hours</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Action Panel -->
+    <div class="col-lg-4">
+        <div class="card bg-dark mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-3">
+                    <button type="button" class="btn btn-outline-primary" id="markReviewed">
+                        <i class="fas fa-check me-2"></i>Mark as Reviewed
+                    </button>
+                    <button type="button" class="btn btn-outline-warning" id="flagTransaction">
+                        <i class="fas fa-flag me-2"></i>Flag Transaction
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" id="reportFraud">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Report as Fraud
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="exportTransaction">
+                        <i class="fas fa-file-export me-2"></i>Export Transaction Data
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card bg-dark">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Similar Transactions</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item bg-transparent">
+                        <h6 class="mb-1">No similar transactions found</h6>
+                        <small class="text-muted">Similar transactions would appear here</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mock functionality for action buttons
+        const markReviewed = document.getElementById('markReviewed');
+        const flagTransaction = document.getElementById('flagTransaction');
+        const reportFraud = document.getElementById('reportFraud');
+        const exportTransaction = document.getElementById('exportTransaction');
+        
+        if (markReviewed) {
+            markReviewed.addEventListener('click', function() {
+                alert('Transaction marked as reviewed. This feature will be fully implemented in a future update.');
+            });
+        }
+        
+        if (flagTransaction) {
+            flagTransaction.addEventListener('click', function() {
+                alert('Transaction flagged for further review. This feature will be fully implemented in a future update.');
+            });
+        }
+        
+        if (reportFraud) {
+            reportFraud.addEventListener('click', function() {
+                alert('Transaction reported as fraud. This feature will be fully implemented in a future update.');
+            });
+        }
+        
+        if (exportTransaction) {
+            exportTransaction.addEventListener('click', function() {
+                alert('Transaction data export initiated. This feature will be fully implemented in a future update.');
+            });
+        }
+    });
+</script>
+{% endblock %}
