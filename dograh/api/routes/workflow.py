@@ -33,8 +33,8 @@ from api.services.configuration.resolve import (
 from api.services.mps_service_key_client import mps_service_key_client
 from api.services.posthog_client import capture_event
 from api.services.pricing.run_usage_response import format_public_usage_info
-from api.services.reports import generate_workflow_report_csv
 from api.services.storage import storage_fs
+
 from api.services.workflow.dto import ReactFlowDTO, sanitize_workflow_definition
 from api.services.workflow.duplicate import duplicate_workflow
 from api.services.workflow.errors import ItemKind, WorkflowError
@@ -1273,36 +1273,6 @@ async def get_workflow_runs(
         applied_filters=filter_criteria if filter_criteria else None,
     )
 
-
-@router.get("/{workflow_id}/report")
-async def download_workflow_report(
-    workflow_id: int,
-    user: UserModel = Depends(get_user),
-    start_date: Optional[datetime] = Query(
-        None, description="Filter runs created on or after this datetime (ISO 8601)"
-    ),
-    end_date: Optional[datetime] = Query(
-        None, description="Filter runs created on or before this datetime (ISO 8601)"
-    ),
-) -> StreamingResponse:
-    """Download a CSV report of completed runs for a workflow."""
-    workflow = await db_client.get_workflow(
-        workflow_id, organization_id=user.selected_organization_id
-    )
-    if workflow is None:
-        raise HTTPException(
-            status_code=404, detail=f"Workflow with id {workflow_id} not found"
-        )
-
-    output, filename = await generate_workflow_report_csv(
-        workflow_id, start_date=start_date, end_date=end_date
-    )
-
-    return StreamingResponse(
-        output,
-        media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
 
 
 @router.get("/templates")

@@ -13,7 +13,6 @@ class User(UserMixin, db.Model):
     
     # Relationships
     transactions = db.relationship('Transaction', backref='user', lazy='dynamic')
-    reports = db.relationship('Report', backref='user', lazy='dynamic')
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -57,28 +56,6 @@ class Transaction(db.Model):
             'flagged_reason': self.flagged_reason
         }
 
-class Report(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(128), nullable=False)
-    description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    start_date = db.Column(db.DateTime, nullable=False)
-    end_date = db.Column(db.DateTime, nullable=False)
-    fraud_count = db.Column(db.Integer, default=0)
-    total_fraud_amount = db.Column(db.Float, default=0.0)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'title': self.title,
-            'description': self.description,
-            'created_at': self.created_at.isoformat(),
-            'start_date': self.start_date.isoformat(),
-            'end_date': self.end_date.isoformat(),
-            'fraud_count': self.fraud_count,
-            'total_fraud_amount': self.total_fraud_amount
-        }
 
 class Model(db.Model):
     id = db.Column(db.Integer, primary_key=True)

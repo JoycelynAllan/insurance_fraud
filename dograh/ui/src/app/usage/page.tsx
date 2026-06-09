@@ -6,7 +6,7 @@ import { useCallback, useEffect, useId, useState } from 'react';
 import TimezoneSelect, { type ITimezoneOption } from 'react-timezone-select';
 import { toast } from 'sonner';
 
-import { downloadUsageRunsReportApiV1OrganizationsUsageRunsReportGet, getDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGet, getMpsCreditsApiV1OrganizationsUsageMpsCreditsGet, getUsageHistoryApiV1OrganizationsUsageRunsGet } from '@/client/sdk.gen';
+import { getDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGet, getMpsCreditsApiV1OrganizationsUsageMpsCreditsGet, getUsageHistoryApiV1OrganizationsUsageRunsGet } from '@/client/sdk.gen';
 import type { DailyUsageBreakdownResponse, MpsCreditsResponse, UsageHistoryResponse, WorkflowRunUsageResponse } from '@/client/types.gen';
 import { CallTypeCell } from '@/components/CallTypeCell';
 import { DailyUsageTable } from '@/components/DailyUsageTable';
@@ -51,7 +51,6 @@ export default function UsagePage() {
         return pageParam ? parseInt(pageParam, 10) : 1;
     });
     const [isExecutingFilters, setIsExecutingFilters] = useState(false);
-    const [isDownloadingReport, setIsDownloadingReport] = useState(false);
 
     // Daily usage breakdown state (only for paid orgs)
     const [dailyUsage, setDailyUsage] = useState<DailyUsageBreakdownResponse | null>(null);
@@ -168,36 +167,7 @@ export default function UsagePage() {
         }
     }, [auth.isAuthenticated, organizationPricing]);
 
-    // Download a CSV of all runs matching the current filters.
-    const handleDownloadReport = async () => {
-        if (!auth.isAuthenticated) return;
-        setIsDownloadingReport(true);
-        try {
-            const response = await downloadUsageRunsReportApiV1OrganizationsUsageRunsReportGet({
-                query: buildUsageQueryParams(appliedFilters),
-                parseAs: 'blob',
-            });
 
-            if (response.data) {
-                const blob = response.data as Blob;
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'usage_runs_report.csv';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(url);
-            } else {
-                toast.error('Failed to download report');
-            }
-        } catch (error) {
-            console.error('Failed to download usage report:', error);
-            toast.error('Failed to download report');
-        } finally {
-            setIsDownloadingReport(false);
-        }
-    };
 
     // Handle timezone change
     const handleTimezoneChange = async (timezone: ITimezoneOption | string) => {
@@ -469,19 +439,7 @@ export default function UsagePage() {
                         onClearFilters={handleClearFilters}
                         isExecuting={isExecutingFilters}
                     />
-                    {appliedFilters.length > 0 && (
-                        <div className="flex justify-end">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleDownloadReport}
-                                disabled={isDownloadingReport}
-                            >
-                                <Download className="h-4 w-4 mr-2" />
-                                {isDownloadingReport ? 'Preparing...' : 'Download Filtered Results'}
-                            </Button>
-                        </div>
-                    )}
+
                 </div>
 
                 {/* Usage History */}

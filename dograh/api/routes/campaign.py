@@ -19,7 +19,7 @@ from api.services.campaign.runner import campaign_runner_service
 from api.services.campaign.source_sync import CampaignSourceSyncService
 from api.services.campaign.source_sync_factory import get_sync_service
 from api.services.quota_service import check_dograh_quota
-from api.services.reports import generate_campaign_report_csv
+
 from api.services.storage import storage_fs
 
 router = APIRouter(prefix="/campaign")
@@ -972,28 +972,4 @@ async def get_campaign_source_download_url(
         )
 
 
-@router.get("/{campaign_id}/report")
-async def download_campaign_report(
-    campaign_id: int,
-    user: UserModel = Depends(get_user),
-    start_date: Optional[datetime] = Query(
-        None, description="Filter runs created on or after this datetime (ISO 8601)"
-    ),
-    end_date: Optional[datetime] = Query(
-        None, description="Filter runs created on or before this datetime (ISO 8601)"
-    ),
-) -> StreamingResponse:
-    """Download a CSV report of completed campaign runs."""
-    campaign = await db_client.get_campaign(campaign_id, user.selected_organization_id)
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
 
-    output, filename = await generate_campaign_report_csv(
-        campaign_id, start_date=start_date, end_date=end_date
-    )
-
-    return StreamingResponse(
-        output,
-        media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )

@@ -6,9 +6,9 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 from app import app, db
-from models import User, Transaction, Report, Model
+from models import User, Transaction, Model
 from fraud_detection import FraudDetectionModel
-from utils import parse_csv, dataframe_to_transactions, generate_report, get_fraud_statistics, get_time_series_data
+from utils import parse_csv, dataframe_to_transactions, get_fraud_statistics, get_time_series_data
 import logging
 import io
 
@@ -238,91 +238,6 @@ def analyze():
     # Display the first 10 rows for preview
     return render_template('analyze.html', data=df.head(10).to_dict('records'))
 
-# Reports route
-@app.route('/reports')
-@login_required
-def reports():
-    # Get user's reports
-    user_reports = Report.query.filter_by(user_id=current_user.id).order_by(Report.created_at.desc()).all()
-    
-    return render_template('reports.html', reports=user_reports)
-
-# Create report route
-@app.route('/reports/create', methods=['GET', 'POST'])
-@login_required
-def create_report():
-    if request.method == 'POST':
-        title = request.form.get('title')
-        description = request.form.get('description')
-        start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d')
-        end_date = datetime.strptime(request.form.get('end_date'), '%Y-%m-%d')
-        
-        # Validation
-        if not title:
-            flash('Title is required', 'danger')
-            return redirect(request.url)
-        
-        if end_date < start_date:
-            flash('End date cannot be before start date', 'danger')
-            return redirect(request.url)
-        
-        # Get transactions for the date range
-        transactions = Transaction.query.filter(
-            Transaction.user_id == current_user.id,
-            Transaction.timestamp >= start_date,
-            Transaction.timestamp <= end_date
-        ).all()
-        
-        # Generate the report
-        report = generate_report(
-            current_user.id,
-            title,
-            description,
-            start_date,
-            end_date,
-            transactions
-        )
-        
-        # Save to database
-        db.session.add(report)
-        db.session.commit()
-        
-        flash('Report created successfully', 'success')
-        return redirect(url_for('reports'))
-    
-    return render_template('create_report.html')
-
-# View report route
-@app.route('/reports/<int:report_id>')
-@login_required
-def view_report(report_id):
-    report = Report.query.get_or_404(report_id)
-    
-    # Ensure the report belongs to the current user
-    if report.user_id != current_user.id:
-        flash('You do not have permission to view this report', 'danger')
-        return redirect(url_for('reports'))
-    
-    # Get transactions for the report's date range
-    transactions = Transaction.query.filter(
-        Transaction.user_id == current_user.id,
-        Transaction.timestamp >= report.start_date,
-        Transaction.timestamp <= report.end_date
-    ).all()
-    
-    # Calculate statistics
-    stats = get_fraud_statistics(transactions)
-    
-    # Get time series data
-    time_series = get_time_series_data(transactions, interval='day')
-    
-    return render_template(
-        'view_report.html',
-        report=report,
-        stats=stats,
-        time_series=time_series,
-        transactions=transactions
-    )
 
 # Transaction details route
 @app.route('/transactions/<int:transaction_id>')

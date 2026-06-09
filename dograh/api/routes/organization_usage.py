@@ -12,7 +12,7 @@ from api.db import db_client
 from api.db.models import UserModel
 from api.services.auth.depends import get_user
 from api.services.mps_service_key_client import mps_service_key_client
-from api.services.reports import generate_usage_runs_report_csv
+
 from api.utils.artifacts import artifact_url
 
 router = APIRouter(prefix="/organizations")
@@ -247,48 +247,7 @@ async def get_usage_history(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/usage/runs/report")
-async def download_usage_runs_report(
-    start_date: Optional[str] = Query(
-        None,
-        description="ISO 8601 date-time string (UTC). Lower bound (inclusive) on `created_at`.",
-    ),
-    end_date: Optional[str] = Query(
-        None,
-        description="ISO 8601 date-time string (UTC). Upper bound (inclusive) on `created_at`.",
-    ),
-    filters: Optional[str] = Query(
-        None,
-        description=FILTERS_DESCRIPTION,
-    ),
-    user: UserModel = Depends(get_user),
-) -> StreamingResponse:
-    """Download a CSV of runs matching the same filters as `/usage/runs`."""
-    if not user.selected_organization_id:
-        raise HTTPException(status_code=400, detail="No organization selected")
 
-    start_dt = datetime.fromisoformat(start_date) if start_date else None
-    end_dt = datetime.fromisoformat(end_date) if end_date else None
-
-    parsed_filters = None
-    if filters:
-        try:
-            parsed_filters = json.loads(filters)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid filters format")
-
-    output, filename = await generate_usage_runs_report_csv(
-        user.selected_organization_id,
-        start_date=start_dt,
-        end_date=end_dt,
-        filters=parsed_filters,
-    )
-
-    return StreamingResponse(
-        output,
-        media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
 
 
 @router.get("/usage/daily-breakdown", response_model=DailyUsageBreakdownResponse)

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import logging
 import io
 import uuid
-from models import Transaction, Report
+from models import Transaction
 
 logger = logging.getLogger(__name__)
 
@@ -93,58 +93,6 @@ def dataframe_to_transactions(df, user_id):
         logger.error(f"Error converting DataFrame to transactions: {str(e)}")
         raise
 
-def generate_report(user_id, title, description, start_date, end_date, transactions):
-    """
-    Generate a fraud report based on transaction data
-    
-    Parameters:
-    -----------
-    user_id : int
-        ID of the user creating the report
-    title : str
-        Report title
-    description : str
-        Report description
-    start_date : datetime
-        Start date for the report period
-    end_date : datetime
-        End date for the report period
-    transactions : list
-        List of Transaction objects
-    
-    Returns:
-    --------
-    Report
-        Generated Report object
-    """
-    try:
-        logger.info(f"Generating report: {title}")
-        
-        # Filter transactions by date range
-        filtered_transactions = [t for t in transactions if start_date <= t.timestamp <= end_date]
-        
-        # Get fraud statistics
-        fraud_transactions = [t for t in filtered_transactions if t.is_fraud]
-        fraud_count = len(fraud_transactions)
-        total_fraud_amount = sum(t.amount for t in fraud_transactions)
-        
-        # Create report
-        report = Report(
-            title=title,
-            description=description,
-            start_date=start_date,
-            end_date=end_date,
-            fraud_count=fraud_count,
-            total_fraud_amount=total_fraud_amount,
-            user_id=user_id
-        )
-        
-        logger.info(f"Report generated: {fraud_count} fraudulent transactions found")
-        return report
-        
-    except Exception as e:
-        logger.error(f"Error generating report: {str(e)}")
-        raise
 
 def get_fraud_statistics(transactions):
     """

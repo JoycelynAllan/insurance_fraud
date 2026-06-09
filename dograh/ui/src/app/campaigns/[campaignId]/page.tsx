@@ -7,7 +7,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
-    downloadCampaignReportApiV1CampaignCampaignIdReportGet,
     getCampaignApiV1CampaignCampaignIdGet,
     getCampaignSourceDownloadUrlApiV1CampaignCampaignIdSourceDownloadUrlGet,
     pauseCampaignApiV1CampaignCampaignIdPausePost,
@@ -49,14 +48,6 @@ export default function CampaignDetailPage() {
 
     // Action state
     const [isExecutingAction, setIsExecutingAction] = useState(false);
-    const [isDownloadingReport, setIsDownloadingReport] = useState(false);
-
-    // Report date range state
-    const [reportStartDate, setReportStartDate] = useState<Date | undefined>(undefined);
-    const [reportStartTime, setReportStartTime] = useState('00:00');
-    const [reportEndDate, setReportEndDate] = useState<Date | undefined>(undefined);
-    const [reportEndTime, setReportEndTime] = useState('23:59');
-    const [isReportPopoverOpen, setIsReportPopoverOpen] = useState(false);
 
     // Redial dialog state
     const [isRedialDialogOpen, setIsRedialDialogOpen] = useState(false);
@@ -145,57 +136,7 @@ export default function CampaignDetailPage() {
         return combined.toISOString();
     };
 
-    // Handle download report
-    const handleDownloadReport = async () => {
-        if (!user) return;
-        setIsDownloadingReport(true);
-        setIsReportPopoverOpen(false);
-        try {
-            const accessToken = await getAccessToken();
-            const startDate = buildDateTime(reportStartDate, reportStartTime);
-            const endDate = buildDateTime(reportEndDate, reportEndTime);
 
-            const response = await downloadCampaignReportApiV1CampaignCampaignIdReportGet({
-                path: {
-                    campaign_id: campaignId,
-                },
-                query: {
-                    start_date: startDate,
-                    end_date: endDate,
-                },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                },
-                parseAs: 'blob',
-            });
-
-            if (response.data) {
-                const blob = response.data as Blob;
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `campaign_${campaignId}_report.csv`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(url);
-            } else {
-                toast.error('Failed to download report');
-            }
-        } catch (error) {
-            console.error('Failed to download report:', error);
-            toast.error('Failed to download report');
-        } finally {
-            setIsDownloadingReport(false);
-        }
-    };
-
-    const handleClearDateRange = () => {
-        setReportStartDate(undefined);
-        setReportStartTime('00:00');
-        setReportEndDate(undefined);
-        setReportEndTime('23:59');
-    };
 
     // Handle start campaign
     const handleStart = async () => {
@@ -512,90 +453,9 @@ export default function CampaignDetailPage() {
                                 </span>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Popover open={isReportPopoverOpen} onOpenChange={setIsReportPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" disabled={isDownloadingReport}>
-                                        <Download className="h-4 w-4 mr-2" />
-                                        Download Report
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-4" align="end">
-                                    <div className="space-y-4">
-                                        <div className="text-sm font-medium">Filter by date range</div>
-                                        <div className="grid gap-3">
-                                            <div className="space-y-1.5">
-                                                <Label className="text-xs">From</Label>
-                                                <div className="flex gap-2">
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal">
-                                                                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                                                                {reportStartDate ? format(reportStartDate, 'MMM dd, yyyy') : 'Start date'}
-                                                            </Button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0" align="start">
-                                                            <Calendar
-                                                                mode="single"
-                                                                selected={reportStartDate}
-                                                                onSelect={setReportStartDate}
-                                                                disabled={(date) => reportEndDate ? date > reportEndDate : false}
-                                                            />
-                                                        </PopoverContent>
-                                                    </Popover>
-                                                    <Input
-                                                        type="time"
-                                                        value={reportStartTime}
-                                                        onChange={(e) => setReportStartTime(e.target.value)}
-                                                        className="w-[100px] h-8 text-xs"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-xs">To</Label>
-                                                <div className="flex gap-2">
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal">
-                                                                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                                                                {reportEndDate ? format(reportEndDate, 'MMM dd, yyyy') : 'End date'}
-                                                            </Button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0" align="start">
-                                                            <Calendar
-                                                                mode="single"
-                                                                selected={reportEndDate}
-                                                                onSelect={setReportEndDate}
-                                                                disabled={(date) => reportStartDate ? date < reportStartDate : false}
-                                                            />
-                                                        </PopoverContent>
-                                                    </Popover>
-                                                    <Input
-                                                        type="time"
-                                                        value={reportEndTime}
-                                                        onChange={(e) => setReportEndTime(e.target.value)}
-                                                        className="w-[100px] h-8 text-xs"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <Separator />
-                                        <div className="flex justify-between">
-                                            <Button variant="ghost" size="sm" onClick={handleClearDateRange}>
-                                                Clear
-                                            </Button>
-                                            <Button size="sm" onClick={handleDownloadReport} disabled={isDownloadingReport}>
-                                                <Download className="h-3.5 w-3.5 mr-1.5" />
-                                                {reportStartDate || reportEndDate ? 'Download Filtered' : 'Download All'}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
-                            {renderActionButton()}
-                        </div>
-                    </div>
+                    {renderActionButton()}
                 </div>
+            </div>
 
                 {/* Campaign Details */}
                 <Card className="mb-6">
