@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+redis
+scikit-learn
+xgboost
+lightgbm
+pandas
+numpy
+africastalking
+apscheduler
+pytest
+python-dotenv
+joblib
+shap
