@@ -17,6 +17,32 @@ import { useState, useEffect, useMemo } from "react";
 
 // react-router components
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import axios from "axios";
+
+// Configure global Axios interceptors for token headers and 401 redirects
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("mifds_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem("mifds_token");
+      localStorage.removeItem("mifds_user_name");
+      localStorage.removeItem("mifds_user_role");
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
 
 // @mui material components
 import { ThemeProvider } from "@mui/material/styles";
@@ -167,7 +193,7 @@ export default function App() {
         {layout === "vr" && <Configurator />}
         <Routes>
           {getRoutes(routes)}
-          <Route path="*" element={<Navigate to="/dashboard" />} />
+          <Route path="*" element={<Navigate to="/login" />} />
         </Routes>
       </ThemeProvider>
     </CacheProvider>
@@ -191,7 +217,7 @@ export default function App() {
       {layout === "vr" && <Configurator />}
       <Routes>
         {getRoutes(routes)}
-        <Route path="*" element={<Navigate to="/dashboard" />} />
+        <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </ThemeProvider>
   );

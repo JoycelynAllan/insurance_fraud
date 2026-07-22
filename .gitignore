@@ -10,3 +10,19 @@ Thumbs.db
 *.njsproj
 *.sln
 *.swp
+
+# Environment variables
+.env
+*.env
+.env.*
+backend/.env
+frontend/.env
+
+# Python cache files
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+

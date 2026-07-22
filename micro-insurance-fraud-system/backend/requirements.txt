@@ -14,3 +14,8 @@ pytest
 python-dotenv
 joblib
 shap
+passlib[bcrypt]
+python-jose[cryptography]
+supabase
+email-validator
+

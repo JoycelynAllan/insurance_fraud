@@ -16,7 +16,8 @@ Coded by www.creative-tim.com
 import { useState, useEffect } from "react";
 
 // react-router components
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 // prop-types is a library for typechecking of props.
 import PropTypes from "prop-types";
@@ -31,6 +32,7 @@ import Icon from "@mui/material/Icon";
 // Material Dashboard 2 React components
 import MDBox from "components/MDBox";
 import MDInput from "components/MDInput";
+import MDTypography from "components/MDTypography";
 
 // Material Dashboard 2 React example components
 import Breadcrumbs from "examples/Breadcrumbs";
@@ -53,12 +55,50 @@ import {
   setOpenConfigurator,
 } from "context";
 
-function DashboardNavbar({ absolute, light, isMini }) {
+function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
   const [navbarType, setNavbarType] = useState();
   const [controller, dispatch] = useMaterialUIController();
   const { miniSidenav, transparentNavbar, fixedNavbar, openConfigurator, darkMode } = controller;
   const [openMenu, setOpenMenu] = useState(false);
+  const navigate = useNavigate();
+  const token = localStorage.getItem("mifds_token");
+  const userName = localStorage.getItem("mifds_user_name") || "User";
+
+  const handleLogout = async () => {
+    try {
+      await axios.post("http://localhost:8000/api/auth/logout");
+    } catch (err) {
+      console.error("Logout API call failed:", err);
+    } finally {
+      localStorage.removeItem("mifds_token");
+      localStorage.removeItem("mifds_user_name");
+      localStorage.removeItem("mifds_user_role");
+      navigate("/login");
+    }
+  };
   const route = useLocation().pathname.split("/").slice(1);
+  const [ghanaTime, setGhanaTime] = useState("");
+
+  useEffect(() => {
+    if (showGhanaTime) {
+      const updateTime = () => {
+        const now = new Date();
+        // Format to Ghana time (GMT+0 / UTC)
+        const options = {
+          timeZone: "UTC",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        };
+        const timeString = now.toLocaleTimeString("en-GB", options);
+        setGhanaTime(`${timeString} (GMT+0)`);
+      };
+      updateTime();
+      const interval = setInterval(updateTime, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [showGhanaTime]);
 
   useEffect(() => {
     // Setting the navbar type
@@ -131,19 +171,57 @@ function DashboardNavbar({ absolute, light, isMini }) {
     >
       <Toolbar sx={(theme) => navbarContainer(theme)}>
         <MDBox color="inherit" mb={{ xs: 1, md: 0 }} sx={(theme) => navbarRow(theme, { isMini })}>
-          <Breadcrumbs icon="home" title={route[route.length - 1]} route={route} light={light} />
+          <Breadcrumbs
+            icon="home"
+            title={title || route[route.length - 1]}
+            route={route}
+            light={light}
+          />
         </MDBox>
         {isMini ? null : (
           <MDBox sx={(theme) => navbarRow(theme, { isMini })}>
             <MDBox pr={1}>
               <MDInput label="Search here" />
             </MDBox>
-            <MDBox color={light ? "white" : "inherit"}>
-              <Link to="/authentication/sign-in/basic">
-                <IconButton sx={navbarIconButton} size="small" disableRipple>
-                  <Icon sx={iconsStyle}>account_circle</Icon>
-                </IconButton>
-              </Link>
+            <MDBox color={light ? "white" : "inherit"} display="flex" alignItems="center">
+              {showGhanaTime && ghanaTime && (
+                <MDBox mr={2}>
+                  <MDTypography
+                    variant="button"
+                    color={light ? "white" : "text"}
+                    fontWeight="medium"
+                  >
+                    🇬🇭 {ghanaTime}
+                  </MDTypography>
+                </MDBox>
+              )}
+              {token ? (
+                <MDBox display="flex" alignItems="center" mr={2}>
+                  <MDTypography
+                    variant="button"
+                    color={light ? "white" : "text"}
+                    fontWeight="medium"
+                    sx={{ mr: 1, display: "flex", alignItems: "center" }}
+                  >
+                    <Icon sx={{ mr: 0.5 }}>account_circle</Icon>
+                    {userName}
+                  </MDTypography>
+                  <IconButton
+                    sx={navbarIconButton}
+                    size="small"
+                    onClick={handleLogout}
+                    title="Logout"
+                  >
+                    <Icon sx={{ color: "error.main" }}>logout</Icon>
+                  </IconButton>
+                </MDBox>
+              ) : (
+                <Link to="/login">
+                  <IconButton sx={navbarIconButton} size="small" disableRipple>
+                    <Icon sx={iconsStyle}>account_circle</Icon>
+                  </IconButton>
+                </Link>
+              )}
               <IconButton
                 size="small"
                 disableRipple
@@ -190,6 +268,8 @@ DashboardNavbar.defaultProps = {
   absolute: false,
   light: false,
   isMini: false,
+  title: "",
+  showGhanaTime: false,
 };
 
 // Typechecking props for the DashboardNavbar
@@ -197,6 +277,8 @@ DashboardNavbar.propTypes = {
   absolute: PropTypes.bool,
   light: PropTypes.bool,
   isMini: PropTypes.bool,
+  title: PropTypes.string,
+  showGhanaTime: PropTypes.bool,
 };
 
 export default DashboardNavbar;
