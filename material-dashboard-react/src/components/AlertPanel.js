@@ -24,9 +24,7 @@ function AlertPanel() {
       const token = localStorage.getItem("mifds_token") || "";
       const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
       const wsBase = apiBase.replace(/^http/, "ws");
-      const socket = new WebSocket(
-        `${wsBase}/api/alerts?token=${encodeURIComponent(token)}`
-      );
+      const socket = new WebSocket(`${wsBase}/api/alerts?token=${encodeURIComponent(token)}`);
       socketRef.current = socket;
 
       socket.onopen = () => {
