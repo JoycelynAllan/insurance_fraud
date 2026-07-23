@@ -35,7 +35,8 @@ function PaymentTrendChart({ agentId }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`http://localhost:8000/api/agents/${agentId}/trend`);
+      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
+      const response = await axios.get(`${apiBase}/api/agents/${agentId}/trend`);
       const trendData = response.data;
 
       setData(trendData);

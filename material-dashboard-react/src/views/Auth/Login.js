@@ -46,7 +46,8 @@ function Login() {
     setSuccess("");
 
     try {
-      const response = await axios.post("http://localhost:8000/api/auth/login", {
+      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
+      const response = await axios.post(`${apiBase}/api/auth/login`, {
         email,
         password,
       });

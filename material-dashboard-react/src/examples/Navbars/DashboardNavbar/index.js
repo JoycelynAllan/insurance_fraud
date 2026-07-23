@@ -66,7 +66,8 @@ function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
 
   const handleLogout = async () => {
     try {
-      await axios.post("http://localhost:8000/api/auth/logout");
+      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
+      await axios.post(`${apiBase}/api/auth/logout`);
     } catch (err) {
       console.error("Logout API call failed:", err);
     } finally {

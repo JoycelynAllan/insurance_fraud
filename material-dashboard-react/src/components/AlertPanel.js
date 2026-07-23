@@ -22,8 +22,10 @@ function AlertPanel() {
     const connectWebSocket = () => {
       setStatus("Connecting");
       const token = localStorage.getItem("mifds_token") || "";
+      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
+      const wsBase = apiBase.replace(/^http/, "ws");
       const socket = new WebSocket(
-        `ws://localhost:8000/api/alerts?token=${encodeURIComponent(token)}`
+        `${wsBase}/api/alerts?token=${encodeURIComponent(token)}`
       );
       socketRef.current = socket;
 

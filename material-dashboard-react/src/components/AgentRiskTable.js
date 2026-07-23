@@ -32,7 +32,8 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get("http://localhost:8000/api/agents/risk");
+      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
+      const response = await axios.get(`${apiBase}/api/agents/risk`);
       setData(response.data);
     } catch (err) {
       console.error(err);
