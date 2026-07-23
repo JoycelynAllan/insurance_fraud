@@ -6,6 +6,7 @@ from backend.app.models.transaction import Transaction, TransactionFeature
 from backend.app.models.alert import FraudAlert
 from backend.app.ml.fraud_detection import score_transaction
 from backend.app.routes.alerts import broadcast_alert
+from voice.dograh_trigger import trigger_payment_reminder_call
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ async def run_fraud_check_job():
     scores them, and persists + broadcasts an alert for any transaction with risk_score >= 70.
     """
     db = SessionLocal()
+    called_phones = set()
     try:
         logger.info("Executing scheduled database-backed fraud checking job...")
         
@@ -44,6 +46,20 @@ async def run_fraud_check_job():
             scored = score_transaction(feature_dict)
             risk_score = float(scored['risk_score'])
             
+            # Outbound reminder trigger
+            if bool(scored.get("is_fraud")) and tx.remittance_status == "missed":
+                if tx.customer_phone and tx.customer_phone not in called_phones:
+                    called_phones.add(tx.customer_phone)
+                    try:
+                        logger.info(f"Triggering outbound voice reminder for customer {tx.customer_phone}")
+                        trigger_payment_reminder_call(
+                            customer_phone=tx.customer_phone,
+                            agent_id=tx.agent_id,
+                            amount=float(tx.amount)
+                        )
+                    except Exception as ve:
+                        logger.error(f"Voice reminder call trigger failed: {str(ve)}")
+
             # Broadcast and persist if risk score >= 70
             if risk_score >= 70:
                 # Check for duplicate alerts for this transaction within the last hour

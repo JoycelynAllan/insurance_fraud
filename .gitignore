@@ -24,5 +24,7 @@ frontend/.env
 *.pyo
 *.pyd
 .pytest_cache/
+*.db
+
 
 
