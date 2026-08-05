@@ -66,8 +66,19 @@ def get_agent_trend(agent_id: str, request: Request, current_user: User = Depend
     """
     Returns the last 30 days of transactions for a specific agent from the DB.
     """
-    # Cutoff date is 30 days before current time
-    cutoff_date = datetime.utcnow() - timedelta(days=30)
+    agent_exists = db.query(Agent).filter(Agent.agent_id == agent_id).first()
+    if not agent_exists:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Agent with ID {agent_id} not found."
+        )
+
+    # Find the latest transaction timestamp in the database to anchor our window
+    latest_tx = db.query(Transaction).order_by(Transaction.timestamp.desc()).first()
+    anchor_date = latest_tx.timestamp if latest_tx else datetime.utcnow()
+    
+    # Cutoff date is 30 days before anchor time
+    cutoff_date = anchor_date - timedelta(days=30)
     
     # Query transactions + features from DB for this agent within the last 30 days
     records = db.query(Transaction, TransactionFeature).join(
@@ -78,10 +89,7 @@ def get_agent_trend(agent_id: str, request: Request, current_user: User = Depend
     ).order_by(Transaction.timestamp.asc()).all()
     
     if not records:
-        raise HTTPException(
-            status_code=404, 
-            detail="Agent not found or no recent transactions"
-        )
+        return []
         
     trend_results = []
     for tx, feat in records:

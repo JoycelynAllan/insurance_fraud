@@ -1,4 +1,5 @@
 import FraudDashboard from "views/Dashboard/FraudDashboard";
+import VoiceCampaigns from "views/Dashboard/VoiceCampaigns";
 import Login from "views/Auth/Login";
 import Register from "views/Auth/Register";
 import PrivateRoute from "utils/PrivateRoute";
@@ -16,6 +17,18 @@ const routes = [
     component: (
       <PrivateRoute>
         <FraudDashboard />
+      </PrivateRoute>
+    ),
+  },
+  {
+    type: "collapse",
+    name: "Voice Campaigns",
+    key: "voice-campaigns",
+    icon: <Icon fontSize="small">record_voice_over</Icon>,
+    route: "/voice-campaigns",
+    component: (
+      <PrivateRoute>
+        <VoiceCampaigns />
       </PrivateRoute>
     ),
   },

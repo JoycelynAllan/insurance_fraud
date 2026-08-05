@@ -29,6 +29,8 @@ function PaymentTrendChart({ agentId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [meanAmount, setMeanAmount] = useState(0);
+  const [triggering, setTriggering] = useState(false);
+  const [feedback, setFeedback] = useState(null);
 
   const fetchData = async () => {
     if (!agentId) return;
@@ -51,15 +53,53 @@ function PaymentTrendChart({ agentId }) {
       }
     } catch (err) {
       console.error(err);
-      if (err.response && err.response.status === 404) {
-        setData([]);
-        setMeanAmount(0);
-        setError(`No recent transactions found for agent ${agentId} in the last 30 days.`);
+      setData([]);
+      setMeanAmount(0);
+      if (err.response) {
+        if (err.response.status === 404) {
+          setError(`Agent ${agentId} not found in the system.`);
+        } else {
+          setError(
+            `API Error (${err.response.status}): ${
+              err.response.data?.detail || "Server error occurred."
+            }`
+          );
+        }
+      } else if (err.request) {
+        setError("Network error: Could not reach the API server.");
       } else {
-        setError("Failed to fetch agent transaction trends.");
+        setError(`Error: ${err.message}`);
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTriggerVoiceCall = async () => {
+    if (!agentId || triggering) return;
+    setTriggering(true);
+    setFeedback(null);
+    try {
+      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
+      const token = localStorage.getItem("mifds_token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const res = await axios.post(
+        `${apiBase}/api/voice/trigger`,
+        { agent_id: agentId },
+        { headers }
+      );
+
+      const msg =
+        res.data?.message ||
+        `Call triggered successfully. Outcome: ${res.data?.data?.outcome || "completed"}`;
+      setFeedback({ type: "success", message: msg });
+    } catch (err) {
+      console.error(err);
+      const errDetail = err.response?.data?.detail || err.message || "Failed to trigger call";
+      setFeedback({ type: "error", message: `Call failed: ${errDetail}` });
+    } finally {
+      setTriggering(false);
     }
   };
 
@@ -146,7 +186,42 @@ function PaymentTrendChart({ agentId }) {
             Transaction history and mean threshold analysis
           </MDTypography>
         </MDBox>
+        <MDButton
+          variant="gradient"
+          color="white"
+          size="small"
+          disabled={triggering || loading}
+          onClick={handleTriggerVoiceCall}
+          sx={{ ml: 2, whitespace: "nowrap" }}
+        >
+          {triggering ? (
+            <MDBox display="flex" alignItems="center">
+              <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />
+              Calling...
+            </MDBox>
+          ) : (
+            <MDBox display="flex" alignItems="center">
+              <Icon sx={{ mr: 0.5 }}>phone_in_talk</Icon>
+              Call Customer
+            </MDBox>
+          )}
+        </MDButton>
       </MDBox>
+
+      {feedback && (
+        <MDBox
+          mx={2}
+          mt={2}
+          px={2}
+          py={1}
+          borderRadius="md"
+          bgColor={feedback.type === "success" ? "success" : "error"}
+        >
+          <MDTypography variant="caption" color="white" fontWeight="bold">
+            {feedback.message}
+          </MDTypography>
+        </MDBox>
+      )}
 
       <MDBox
         pt={3}
