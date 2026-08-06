@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /app/backend/requirements.txt
 
 # Copy backend application code and voice module into /app
+# Note: Docker build context MUST be 'micro-insurance-fraud-system' (Render rootDir)
 COPY backend /app/backend
 COPY voice /app/voice
 
