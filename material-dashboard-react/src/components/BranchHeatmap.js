@@ -23,6 +23,8 @@ import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
 
+import { getApiBase } from "utils/apiConfig";
+
 function BranchHeatmap() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +34,7 @@ function BranchHeatmap() {
     setLoading(true);
     setError(null);
     try {
-      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
+      const apiBase = getApiBase();
       const response = await axios.get(`${apiBase}/api/agents/risk`);
 
       // Group by branch and calculate average risk score

@@ -16,10 +16,13 @@ import BasicLayout from "layouts/authentication/components/BasicLayout";
 // Images
 import bgImage from "assets/images/bg-sign-in-basic.jpeg";
 
+import { getApiBase } from "utils/apiConfig";
+
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -44,9 +47,12 @@ function Login() {
     e.preventDefault();
     setError("");
     setSuccess("");
+    setLoading(true);
+
+    const apiBase = getApiBase();
+    console.log(`[Auth] Attempting login to: ${apiBase}/api/auth/login`);
 
     try {
-      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
       const response = await axios.post(`${apiBase}/api/auth/login`, {
         email,
         password,
@@ -62,7 +68,18 @@ function Login() {
       // Redirect to dashboard
       navigate("/fraud");
     } catch (err) {
-      setError("Invalid email or password");
+      console.error("[Auth Error - Login Failed]", err);
+      if (err.response && err.response.data && err.response.data.detail) {
+        setError(err.response.data.detail);
+      } else if (err.message === "Network Error" || !err.response) {
+        setError(
+          "Unable to connect to backend server. Render free tier may be waking up (cold start). Please wait ~30s and try again."
+        );
+      } else {
+        setError("Invalid email or password");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -136,8 +153,8 @@ function Login() {
               </MDTypography>
             </MDBox>
             <MDBox mt={4} mb={1}>
-              <MDButton variant="gradient" color="info" fullWidth type="submit">
-                log in
+              <MDButton variant="gradient" color="info" fullWidth type="submit" disabled={loading}>
+                {loading ? "Logging in..." : "log in"}
               </MDButton>
             </MDBox>
             <MDBox mt={3} mb={1} textAlign="center">

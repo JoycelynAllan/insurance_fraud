@@ -18,6 +18,7 @@ import BasicLayout from "layouts/authentication/components/BasicLayout";
 
 // Images
 import bgImage from "assets/images/bg-sign-up-cover.jpeg";
+import { getApiBase } from "utils/apiConfig";
 
 function Register() {
   const [fullName, setFullName] = useState("");
@@ -25,6 +26,7 @@ function Register() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [branch, setBranch] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
@@ -68,8 +70,11 @@ function Register() {
       return;
     }
 
+    setLoading(true);
+    const apiBase = getApiBase();
+    console.log(`[Auth] Attempting registration to: ${apiBase}/api/auth/register`);
+
     try {
-      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
       await axios.post(`${apiBase}/api/auth/register`, {
         full_name: fullName,
         email,
@@ -82,11 +87,18 @@ function Register() {
         state: { message: "Account created. Please log in." },
       });
     } catch (err) {
+      console.error("[Auth Error - Registration Failed]", err);
       if (err.response && err.response.data && err.response.data.detail) {
         setError(err.response.data.detail);
+      } else if (err.message === "Network Error" || !err.response) {
+        setError(
+          "Unable to connect to backend server. Render free tier may be waking up (cold start). Please wait ~30s and try again."
+        );
       } else {
         setError("Failed to register. Please try again.");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -189,8 +201,8 @@ function Register() {
               </FormControl>
             </MDBox>
             <MDBox mt={4} mb={1}>
-              <MDButton variant="gradient" color="info" fullWidth type="submit">
-                register
+              <MDButton variant="gradient" color="info" fullWidth type="submit" disabled={loading}>
+                {loading ? "Registering..." : "register"}
               </MDButton>
             </MDBox>
             <MDBox mt={3} mb={1} textAlign="center">

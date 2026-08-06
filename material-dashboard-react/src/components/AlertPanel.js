@@ -11,6 +11,8 @@ import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDBadge from "components/MDBadge";
 
+import { getWsBase } from "utils/apiConfig";
+
 function AlertPanel() {
   const [alerts, setAlerts] = useState([]);
   const [status, setStatus] = useState("Connecting"); // Connecting, Connected, Disconnected
@@ -22,8 +24,7 @@ function AlertPanel() {
     const connectWebSocket = () => {
       setStatus("Connecting");
       const token = localStorage.getItem("mifds_token") || "";
-      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
-      const wsBase = apiBase.replace(/^http/, "ws");
+      const wsBase = getWsBase();
       const socket = new WebSocket(`${wsBase}/api/alerts?token=${encodeURIComponent(token)}`);
       socketRef.current = socket;
 

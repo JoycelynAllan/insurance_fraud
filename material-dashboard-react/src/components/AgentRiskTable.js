@@ -22,6 +22,8 @@ import MDTypography from "components/MDTypography";
 import MDBadge from "components/MDBadge";
 import MDButton from "components/MDButton";
 
+import { getApiBase } from "utils/apiConfig";
+
 function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,11 +34,11 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
     setLoading(true);
     setError(null);
     try {
-      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
+      const apiBase = getApiBase();
       const response = await axios.get(`${apiBase}/api/agents/risk`);
       setData(response.data);
     } catch (err) {
-      console.error(err);
+      console.error("[API Error - AgentRiskTable]", err);
       setError("Failed to fetch risk data from API.");
     } finally {
       setLoading(false);

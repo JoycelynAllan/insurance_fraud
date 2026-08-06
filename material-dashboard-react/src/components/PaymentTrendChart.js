@@ -23,6 +23,7 @@ import {
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
+import { getApiBase } from "utils/apiConfig";
 
 function PaymentTrendChart({ agentId }) {
   const [data, setData] = useState([]);
@@ -37,7 +38,7 @@ function PaymentTrendChart({ agentId }) {
     setLoading(true);
     setError(null);
     try {
-      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
+      const apiBase = getApiBase();
       const response = await axios.get(`${apiBase}/api/agents/${agentId}/trend`);
       const trendData = response.data;
 
@@ -80,7 +81,7 @@ function PaymentTrendChart({ agentId }) {
     setTriggering(true);
     setFeedback(null);
     try {
-      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
+      const apiBase = getApiBase();
       const token = localStorage.getItem("mifds_token");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 

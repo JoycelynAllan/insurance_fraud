@@ -29,6 +29,8 @@ import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
 
+import { getApiBase } from "utils/apiConfig";
+
 function VoiceCampaigns() {
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
@@ -45,7 +47,7 @@ function VoiceCampaigns() {
     setLoading(true);
     setError(null);
     try {
-      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
+      const apiBase = getApiBase();
       const token = localStorage.getItem("mifds_token");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 

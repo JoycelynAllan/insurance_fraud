@@ -55,6 +55,8 @@ import {
   setOpenConfigurator,
 } from "context";
 
+import { getApiBase } from "utils/apiConfig";
+
 function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
   const [navbarType, setNavbarType] = useState();
   const [controller, dispatch] = useMaterialUIController();
@@ -66,7 +68,7 @@ function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
 
   const handleLogout = async () => {
     try {
-      const apiBase = process.env.REACT_APP_API_BASE || "http://localhost:8000";
+      const apiBase = getApiBase();
       await axios.post(`${apiBase}/api/auth/logout`);
     } catch (err) {
       console.error("Logout API call failed:", err);
