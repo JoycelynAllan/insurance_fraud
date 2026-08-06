@@ -25,6 +25,7 @@ frontend/.env
 *.pyd
 .pytest_cache/
 *.db
+!micro-insurance-fraud-system/voice/call_logs.db
 
 
 
