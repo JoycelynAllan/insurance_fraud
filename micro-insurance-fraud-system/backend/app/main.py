@@ -86,12 +86,14 @@ from backend.app.routes.alerts import router as alerts_router
 from backend.app.routes.agents import router as agents_router
 from backend.app.routes.auth import router as auth_router
 from backend.app.routes.voice import router as voice_router
+from backend.app.routes.otp import router as otp_router
 
 app.include_router(analyze_router, prefix="/api")
 app.include_router(alerts_router, prefix="/api")
 app.include_router(agents_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(voice_router, prefix="/api")
+app.include_router(otp_router, prefix="/api")
 
 # Root health check route
 @app.get("/")

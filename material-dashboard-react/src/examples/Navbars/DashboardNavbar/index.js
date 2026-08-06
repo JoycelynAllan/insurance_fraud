@@ -55,13 +55,14 @@ import {
   setOpenConfigurator,
 } from "context";
 
-import { getApiBase } from "utils/apiConfig";
+import SmsOtpDialog from "components/SmsOtpDialog";
 
 function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
   const [navbarType, setNavbarType] = useState();
   const [controller, dispatch] = useMaterialUIController();
   const { miniSidenav, transparentNavbar, fixedNavbar, openConfigurator, darkMode } = controller;
   const [openMenu, setOpenMenu] = useState(false);
+  const [otpOpen, setOtpOpen] = useState(false);
   const navigate = useNavigate();
   const token = localStorage.getItem("mifds_token");
   const userName = localStorage.getItem("mifds_user_name") || "User";
@@ -212,6 +213,14 @@ function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
                   <IconButton
                     sx={navbarIconButton}
                     size="small"
+                    onClick={() => setOtpOpen(true)}
+                    title="SMS OTP Phone Verification"
+                  >
+                    <Icon sx={{ color: "info.main", mr: 0.5 }}>sms</Icon>
+                  </IconButton>
+                  <IconButton
+                    sx={navbarIconButton}
+                    size="small"
                     onClick={handleLogout}
                     title="Logout"
                   >
@@ -262,6 +271,7 @@ function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
           </MDBox>
         )}
       </Toolbar>
+      <SmsOtpDialog open={otpOpen} onClose={() => setOtpOpen(false)} />
     </AppBar>
   );
 }

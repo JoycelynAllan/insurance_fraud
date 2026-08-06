@@ -1,11 +1,10 @@
 {
-  "name": "material-dashboard-2-react",
-  "version": "2.2.0",
+  "name": "micro-insurance-fraud-dashboard",
+  "version": "1.0.0",
   "homepage": "/",
   "private": true,
-  "author": "Creative Tim",
-  "license": "See license in https://www.creative-tim.com/license",
-  "description": "React version of Material Dashboard 2 by Creative Tim",
+  "author": "MicroInsure Fraud Detection Team",
+  "description": "Micro-Insurance Fraud Detection System Dashboard for Ghana",
   "bugs": {
     "url": "https://github.com/creativetimofficial/material-dashboard-react/issues"
   },

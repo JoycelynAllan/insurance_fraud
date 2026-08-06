@@ -58,10 +58,16 @@ def trigger_payment_reminder_call(
     timestamp = datetime.utcnow().isoformat() + "Z"
     
     # Load settings from environment
-    api_url = os.environ.get("DOGRAH_API_URL", "http://localhost:8000")  # Dograh API default port is 8000
+    api_url = os.environ.get("DOGRAH_API_URL", "http://localhost:8000")
     api_token = os.environ.get("DOGRAH_API_TOKEN", "mock_token")
     workflow_id_str = os.environ.get("DOGRAH_WORKFLOW_ID", "1")
     
+    if api_token == "mock_token" or "localhost" in api_url:
+        logger.warning(
+            f"[DOGRAH DIAGNOSTIC] Using fallback credentials (api_url={api_url}, api_token={api_token}). "
+            "If deployed on Render, set DOGRAH_API_URL and DOGRAH_API_TOKEN in Render environment variables."
+        )
+
     try:
         workflow_id = int(workflow_id_str)
     except ValueError:

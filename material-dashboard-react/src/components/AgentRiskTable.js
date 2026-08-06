@@ -132,7 +132,7 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
             </MDButton>
           </MDBox>
         ) : (
-          <TableContainer sx={{ maxHeight: "360px", overflowY: "auto" }}>
+          <TableContainer sx={{ maxHeight: "360px", overflowY: "auto", overflowX: "auto" }}>
             <Table stickyHeader size="small">
               <TableHead>
                 <TableRow>

@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from backend.app.db import Base
 
@@ -12,6 +12,8 @@ class User(Base):
     password_hash = Column(Text, nullable=False)
     role = Column(String(20), default="analyst", nullable=False)  # analyst, admin
     branch = Column(String(50), nullable=True)
+    phone_number = Column(String(30), nullable=True)
+    phone_verified = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     last_login = Column(DateTime, nullable=True)
 
@@ -30,3 +32,16 @@ class UserSession(Base):
 
     # Relationship to user
     user = relationship("User", back_populates="sessions")
+
+
+class OTPCode(Base):
+    __tablename__ = "otp_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    phone_number = Column(String(30), nullable=False)
+    code = Column(String(10), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    is_used = Column(Boolean, default=False, nullable=False)
+

@@ -238,7 +238,7 @@ function VoiceCampaigns() {
                     </MDBox>
                   ) : (
                     <>
-                      <TableContainer>
+                      <TableContainer sx={{ overflowX: "auto" }}>
                         <Table size="small">
                           <TableHead sx={{ display: "table-header-group" }}>
                             <TableRow>
