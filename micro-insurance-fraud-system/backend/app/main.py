@@ -94,6 +94,7 @@ app.include_router(agents_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(voice_router, prefix="/api")
 app.include_router(otp_router, prefix="/api")
+app.include_router(otp_router, prefix="/api/auth")
 
 # Root health check route
 @app.get("/")
