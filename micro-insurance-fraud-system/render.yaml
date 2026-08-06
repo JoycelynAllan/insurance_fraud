@@ -1,0 +1,42 @@
+# Render Blueprint Specification File (render.yaml)
+# For Micro-Insurance Fraud Detection System (Backend & Database)
+
+services:
+  - type: web
+    name: mifds-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    context: .
+    plan: free
+    region: oregon
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mifds-db
+          property: connectionString
+      - key: REDIS_URL
+        placeholder: true # Example: rediss://default:token@upstash-redis-host:6379
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://frauddetection-three.vercel.app
+      - key: DOGRAH_API_URL
+        value: http://localhost:8000
+      - key: DOGRAH_API_TOKEN
+        placeholder: true
+      - key: DOGRAH_WORKFLOW_ID
+        value: "1"
+      - key: AT_USERNAME
+        value: sandbox
+      - key: AT_API_KEY
+        placeholder: true
+
+databases:
+  - name: mifds-db
+    plan: free
+    region: oregon
+    databaseName: fraud_db
+    user: fraud_user

@@ -11,8 +11,8 @@ from backend.app.models.user import User, UserSession
 
 logger = logging.getLogger(__name__)
 
-# Configuration settings using Supabase values
-SECRET_KEY = os.getenv("SUPABASE_JWT_SECRET", "0e6ff5e5-bdf3-4557-bb42-1ead4c111f69")
+# Configuration settings using SECRET_KEY or Supabase values
+SECRET_KEY = os.getenv("SECRET_KEY", os.getenv("SUPABASE_JWT_SECRET", "0e6ff5e5-bdf3-4557-bb42-1ead4c111f69"))
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("ACCESS_TOKEN_EXPIRE_HOURS", 8))
 

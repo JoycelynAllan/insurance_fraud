@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -61,13 +62,18 @@ app = FastAPI(
 )
 
 # Configure CORS Middleware
+frontend_url = os.getenv("FRONTEND_URL")
+allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://frauddetection-three.vercel.app"
+]
+if frontend_url and frontend_url not in allowed_origins:
+    allowed_origins.append(frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "https://frauddetection-three.vercel.app"
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
