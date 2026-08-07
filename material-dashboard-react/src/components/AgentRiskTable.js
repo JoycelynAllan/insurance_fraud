@@ -136,12 +136,24 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
             <Table stickyHeader size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: "bold" }}>Agent ID</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Branch</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Risk Score</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Amount</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Date</TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "20%" }} align="left">
+                    Agent ID
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "20%" }} align="left">
+                    Branch
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "18%" }} align="center">
+                    Risk Score
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "14%" }} align="center">
+                    Status
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "16%" }} align="right">
+                    Amount
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "12%" }} align="center">
+                    Date
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -165,17 +177,17 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
                         },
                       }}
                     >
-                      <TableCell>
+                      <TableCell align="left">
                         <MDTypography variant="button" fontWeight="medium">
                           {row.agent_id}
                         </MDTypography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell align="left">
                         <MDTypography variant="caption" color="text" fontWeight="medium">
                           {row.branch}
                         </MDTypography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell align="center">
                         <MDBadge
                           badgeContent={`${row.risk_score.toFixed(1)}%`}
                           color={riskColor}
@@ -183,17 +195,17 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
                           size="xs"
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell align="center">
                         <MDTypography variant="caption" color="text" fontWeight="medium">
                           {row.status}
                         </MDTypography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell align="right">
                         <MDTypography variant="caption" color="text" fontWeight="medium">
                           GHS {row.amount ? row.amount.toFixed(2) : "0.00"}
                         </MDTypography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell align="center">
                         <MDTypography variant="caption" color="text" fontWeight="medium">
                           {row.date ? row.date.split(" ")[0] : "-"}
                         </MDTypography>

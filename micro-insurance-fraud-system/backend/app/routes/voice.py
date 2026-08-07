@@ -151,9 +151,10 @@ def trigger_voice_call(
         )
         return {
             "status": "success",
-            "message": f"Payment reminder outbound call triggered successfully. Call outcome: {result.get('outcome', 'unknown')}",
+            "message": f"Payment reminder outbound call triggered. Call outcome: {result.get('outcome', 'unknown')}",
             "data": {
                 "outcome": result.get("outcome"),
+                "notes": result.get("notes"),
                 "timestamp": result.get("timestamp"),
                 "customer_phone": customer_phone,
                 "agent_id": agent_id,

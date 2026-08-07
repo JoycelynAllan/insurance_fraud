@@ -23,22 +23,28 @@ class OTPVerifyRequest(BaseModel):
 
 def send_sms_via_africastalking(phone_number: str, message: str) -> dict:
     username = os.getenv("AT_USERNAME", "sandbox")
-    api_key = os.getenv("AT_API_KEY", "your_at_api_key_here")
+    api_key = os.getenv("AT_API_KEY")
 
-    if not api_key or api_key == "your_at_api_key_here" or username == "sandbox":
-        logger.info(f"[DEV SMS FALLBACK] Would send SMS to {phone_number}: {message}")
-        return {"status": "dev_sandbox", "message": "Development mode — SMS logged."}
+    if not api_key or api_key.strip() in ["your_at_api_key_here", "your_africastalking_key", "<your_africastalking_key>", ""]:
+        logger.info(f"[DEV SMS FALLBACK] AT_API_KEY missing or placeholder. Would send SMS to {phone_number}: {message}")
+        return {"status": "dev_sandbox", "message": "Development fallback mode — SMS logged."}
 
     try:
         import africastalking
-        africastalking.initialize(username, api_key)
+        africastalking.initialize(username, api_key.strip())
         sms = africastalking.SMS
         response = sms.send(message, [phone_number])
-        logger.info(f"Africa's Talking SMS response: {response}")
+        logger.info(f"Africa's Talking SMS API Response for {phone_number}: {response}")
+        
+        # Log recipient status details
+        if isinstance(response, dict):
+            recipients = response.get("SMSMessageData", {}).get("Recipients", [])
+            for r in recipients:
+                logger.info(f"Recipient {r.get('number')}: status={r.get('status')}, cost={r.get('cost')}, msgId={r.get('messageId')}")
+
         return response
     except Exception as e:
-        logger.error(f"Failed to send SMS via Africa's Talking: {str(e)}")
-        # Do not block execution, log error
+        logger.error(f"Failed to send SMS via Africa's Talking for {phone_number}: {str(e)}")
         return {"status": "error", "detail": str(e)}
 
 
