@@ -201,7 +201,14 @@ function Register() {
               </FormControl>
             </MDBox>
             <MDBox mt={4} mb={1}>
-              <MDButton variant="gradient" color="info" fullWidth type="submit" disabled={loading}>
+              <MDButton
+                variant="gradient"
+                color="info"
+                fullWidth
+                type="submit"
+                disabled={loading}
+                sx={{ touchAction: "manipulation", py: 1.5 }}
+              >
                 {loading ? "Registering..." : "register"}
               </MDButton>
             </MDBox>
