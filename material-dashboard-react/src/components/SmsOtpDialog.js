@@ -22,7 +22,6 @@ function SmsOtpDialog({ open, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [devOtpHint, setDevOtpHint] = useState(null);
 
   const fetchStatus = async () => {
     try {
@@ -42,7 +41,6 @@ function SmsOtpDialog({ open, onClose }) {
       fetchStatus();
       setError("");
       setMessage("");
-      setDevOtpHint(null);
       setStep(1);
     }
   }, [open]);
@@ -51,7 +49,6 @@ function SmsOtpDialog({ open, onClose }) {
     e.preventDefault();
     setError("");
     setMessage("");
-    setDevOtpHint(null);
     setLoading(true);
 
     try {
@@ -61,9 +58,6 @@ function SmsOtpDialog({ open, onClose }) {
       });
 
       setMessage(res.data.message || "OTP code sent via SMS!");
-      if (res.data.dev_otp) {
-        setDevOtpHint(res.data.dev_otp);
-      }
       setStep(2);
     } catch (err) {
       console.error("[OTP Send Error]", err);
@@ -127,14 +121,6 @@ function SmsOtpDialog({ open, onClose }) {
           <MDBox mb={2} p={1} borderRadius="md" bgColor="success" color="white">
             <MDTypography variant="caption" color="white" fontWeight="medium">
               {message}
-            </MDTypography>
-          </MDBox>
-        )}
-
-        {devOtpHint && (
-          <MDBox mb={2} p={1} borderRadius="md" bgColor="info" color="white" textAlign="center">
-            <MDTypography variant="caption" color="white" fontWeight="bold">
-              [DEV MODE] Generated OTP: {devOtpHint}
             </MDTypography>
           </MDBox>
         )}

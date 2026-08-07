@@ -160,6 +160,7 @@ def trigger_payment_reminder_call(
         
     return {
         "outcome": outcome,
+        "notes": notes,
         "timestamp": timestamp,
         "customer_phone": customer_phone,
         "agent_id": agent_id

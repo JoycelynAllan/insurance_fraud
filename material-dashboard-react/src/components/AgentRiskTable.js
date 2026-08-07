@@ -136,36 +136,72 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
             <Table stickyHeader size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: "bold", width: "20%" }} align="left">
+                  <TableCell
+                    sx={{ fontWeight: "bold", width: "20%", minWidth: "110px" }}
+                    align="left"
+                  >
                     Agent ID
                   </TableCell>
-                  <TableCell sx={{ fontWeight: "bold", width: "20%" }} align="left">
+                  <TableCell
+                    sx={{ fontWeight: "bold", width: "20%", minWidth: "110px" }}
+                    align="left"
+                  >
                     Branch
                   </TableCell>
-                  <TableCell sx={{ fontWeight: "bold", width: "18%" }} align="center">
+                  <TableCell
+                    sx={{ fontWeight: "bold", width: "18%", minWidth: "100px" }}
+                    align="center"
+                  >
                     Risk Score
                   </TableCell>
-                  <TableCell sx={{ fontWeight: "bold", width: "14%" }} align="center">
+                  <TableCell
+                    sx={{ fontWeight: "bold", width: "14%", minWidth: "90px" }}
+                    align="center"
+                  >
                     Status
                   </TableCell>
-                  <TableCell sx={{ fontWeight: "bold", width: "16%" }} align="right">
+                  <TableCell
+                    sx={{ fontWeight: "bold", width: "16%", minWidth: "100px" }}
+                    align="right"
+                  >
                     Amount
                   </TableCell>
-                  <TableCell sx={{ fontWeight: "bold", width: "12%" }} align="center">
+                  <TableCell
+                    sx={{ fontWeight: "bold", width: "12%", minWidth: "90px" }}
+                    align="center"
+                  >
                     Date
                   </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredData.map((row) => {
-                  const isSelected = selectedAgentId === row.agent_id;
-                  const riskColor = getRiskColor(row.risk_score);
+                {filteredData.map((row, idx) => {
+                  const agentId = row.agent_id || row.agentId || `AGT-${idx + 1}`;
+                  const isSelected = selectedAgentId === agentId;
+
+                  const rawScore =
+                    row.risk_score !== undefined && row.risk_score !== null
+                      ? row.risk_score
+                      : row.riskScore;
+                  const numericScore =
+                    typeof rawScore === "number" ? rawScore : parseFloat(rawScore) || 0.0;
+                  const riskColor = getRiskColor(numericScore);
+
+                  const rawAmount =
+                    row.amount !== undefined && row.amount !== null ? row.amount : row.total_amount;
+                  const numericAmount =
+                    typeof rawAmount === "number" ? rawAmount : parseFloat(rawAmount) || 0.0;
+
+                  const statusText =
+                    row.status || row.remittance_status || (row.is_fraud ? "FLAGGED" : "CLEARED");
+                  const dateRaw = row.date || row.timestamp || row.created_at;
+                  const dateText = dateRaw ? String(dateRaw).split(" ")[0].split("T")[0] : "-";
 
                   return (
                     <TableRow
-                      key={row.agent_id}
+                      key={agentId}
                       hover
-                      onClick={() => onSelectAgent(row.agent_id)}
+                      onClick={() => onSelectAgent(agentId)}
                       selected={isSelected}
                       sx={{
                         cursor: "pointer",
@@ -177,37 +213,37 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
                         },
                       }}
                     >
-                      <TableCell align="left">
+                      <TableCell align="left" sx={{ width: "20%", minWidth: "110px" }}>
                         <MDTypography variant="button" fontWeight="medium">
-                          {row.agent_id}
+                          {agentId}
                         </MDTypography>
                       </TableCell>
-                      <TableCell align="left">
+                      <TableCell align="left" sx={{ width: "20%", minWidth: "110px" }}>
                         <MDTypography variant="caption" color="text" fontWeight="medium">
-                          {row.branch}
+                          {row.branch || "General"}
                         </MDTypography>
                       </TableCell>
-                      <TableCell align="center">
+                      <TableCell align="center" sx={{ width: "18%", minWidth: "100px" }}>
                         <MDBadge
-                          badgeContent={`${row.risk_score.toFixed(1)}%`}
+                          badgeContent={`${numericScore.toFixed(1)}%`}
                           color={riskColor}
                           variant="gradient"
                           size="xs"
                         />
                       </TableCell>
-                      <TableCell align="center">
+                      <TableCell align="center" sx={{ width: "14%", minWidth: "90px" }}>
                         <MDTypography variant="caption" color="text" fontWeight="medium">
-                          {row.status}
+                          {statusText}
                         </MDTypography>
                       </TableCell>
-                      <TableCell align="right">
+                      <TableCell align="right" sx={{ width: "16%", minWidth: "100px" }}>
                         <MDTypography variant="caption" color="text" fontWeight="medium">
-                          GHS {row.amount ? row.amount.toFixed(2) : "0.00"}
+                          GHS {numericAmount.toFixed(2)}
                         </MDTypography>
                       </TableCell>
-                      <TableCell align="center">
+                      <TableCell align="center" sx={{ width: "12%", minWidth: "90px" }}>
                         <MDTypography variant="caption" color="text" fontWeight="medium">
-                          {row.date ? row.date.split(" ")[0] : "-"}
+                          {dateText}
                         </MDTypography>
                       </TableCell>
                     </TableRow>

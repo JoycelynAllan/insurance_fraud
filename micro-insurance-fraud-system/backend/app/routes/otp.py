@@ -91,7 +91,6 @@ def send_otp(
     return {
         "status": "success",
         "message": f"OTP verification code sent to {phone}",
-        "dev_otp": otp_code if (os.getenv("AT_USERNAME", "sandbox") == "sandbox" or os.getenv("AT_API_KEY") in [None, "your_at_api_key_here"]) else None,
         "sms_result": sms_result
     }
 

@@ -8,7 +8,12 @@ from pathlib import Path
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./fraud_db.db")
+DATABASE_URL = (
+    os.getenv("DATABASE_URL")
+    or os.getenv("SUPABASE_DATABASE_URL")
+    or os.getenv("SUPABASE_POSTGRES_URL")
+    or "sqlite:///./fraud_db.db"
+)
 
 # Convert Render's legacy postgres:// scheme to postgresql:// required by SQLAlchemy 1.4+
 if DATABASE_URL.startswith("postgres://"):
