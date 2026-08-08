@@ -66,10 +66,14 @@ frontend_url = os.getenv("FRONTEND_URL")
 allowed_origins = [
     "http://localhost:3000",
     "http://localhost:3001",
+    "http://localhost:5173",
+    "https://insurance-fraud-4t3m.onrender.com",
     "https://frauddetection-three.vercel.app"
 ]
-if frontend_url and frontend_url not in allowed_origins:
-    allowed_origins.append(frontend_url)
+if frontend_url:
+    clean_url = frontend_url.rstrip("/")
+    if clean_url not in allowed_origins:
+        allowed_origins.append(clean_url)
 
 app.add_middleware(
     CORSMiddleware,
