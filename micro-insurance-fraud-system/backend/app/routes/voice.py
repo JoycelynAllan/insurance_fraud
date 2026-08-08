@@ -1,6 +1,4 @@
-import sqlite3
 import logging
-from pathlib import Path
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -10,16 +8,11 @@ from backend.app.db import get_db
 from backend.app.utils.auth_guard import get_current_user
 from backend.app.models.user import User
 from backend.app.models.transaction import Transaction
+from backend.app.models.voice import VoiceCallLog
 from voice.dograh_trigger import trigger_payment_reminder_call
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-# Resolve SQLite call logs path
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
-DB_PATH = BASE_DIR / "voice" / "call_logs.db"
-if not DB_PATH.exists():
-    DB_PATH = Path.cwd() / "voice" / "call_logs.db"
 
 class VoiceTriggerRequest(BaseModel):
     agent_id: str = Field(..., description="Agent ID associated with the reminder")
@@ -32,68 +25,34 @@ def get_voice_logs(
     outcome: str = Query(None, description="Filter by outcome (e.g. answered, no_answer, failed)"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
-    Returns call logs from the local voice campaign database.
+    Returns voice campaign call logs from Supabase PostgreSQL.
     """
-    if not DB_PATH.exists():
-        return {
-            "total": 0,
-            "limit": limit,
-            "offset": offset,
-            "logs": []
-        }
-        
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        # Base query count
-        count_query = "SELECT COUNT(*) FROM call_logs"
-        query = "SELECT * FROM call_logs"
-        
-        conditions = []
-        params = []
+        query = db.query(VoiceCallLog)
         
         if agent_id:
-            conditions.append("agent_id = ?")
-            params.append(agent_id)
+            query = query.filter(VoiceCallLog.agent_id == agent_id)
         if outcome:
-            conditions.append("outcome = ?")
-            params.append(outcome)
+            query = query.filter(VoiceCallLog.outcome == outcome)
             
-        if conditions:
-            where_clause = " WHERE " + " AND ".join(conditions)
-            count_query += where_clause
-            query += where_clause
-            
-        # Order and pagination
-        query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
-        params.extend([limit, offset])
-        
-        # Execute count
-        cursor.execute(count_query, params[:-2])
-        total_count = cursor.fetchone()[0]
-        
-        # Execute query
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
-        
-        conn.close()
+        total_count = query.count()
+        logs_records = query.order_by(VoiceCallLog.timestamp.desc()).offset(offset).limit(limit).all()
         
         logs = []
-        for r in rows:
+        for r in logs_records:
             logs.append({
-                "id": r["id"],
-                "customer_phone": r["customer_phone"],
-                "agent_id": r["agent_id"],
-                "amount": r["amount"],
-                "outcome": r["outcome"],
-                "timestamp": r["timestamp"],
-                "attempt_number": r["attempt_number"],
-                "notes": r["notes"]
+                "id": r.id,
+                "customer_phone": r.customer_phone,
+                "agent_id": r.agent_id,
+                "amount": float(r.amount),
+                "outcome": r.outcome,
+                "timestamp": r.timestamp.isoformat() + "Z" if r.timestamp else None,
+                "attempt_number": r.attempt_number,
+                "notes": r.notes
             })
             
         return {
@@ -103,10 +62,10 @@ def get_voice_logs(
             "logs": logs
         }
     except Exception as e:
-        logger.error(f"Error querying voice logs: {str(e)}")
+        logger.error(f"Error querying voice logs from Supabase: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to query voice logs: {str(e)}"
+            detail=f"Failed to query voice logs from Supabase: {str(e)}"
         )
 
 @router.post("/voice/trigger")

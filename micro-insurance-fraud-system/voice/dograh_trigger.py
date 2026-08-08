@@ -1,5 +1,4 @@
 import os
-import sqlite3
 import re
 import time
 import logging
@@ -9,6 +8,9 @@ from dograh_sdk import DograhClient
 from dograh_sdk._generated_models import InitiateCallRequest
 from apscheduler.schedulers.background import BackgroundScheduler
 
+from backend.app.db import SessionLocal
+from backend.app.models.voice import VoiceCallLog
+
 logger = logging.getLogger(__name__)
 
 # Initialize background scheduler for retries
@@ -17,37 +19,33 @@ retry_scheduler = BackgroundScheduler()
 if not retry_scheduler.running:
     retry_scheduler.start()
 
-def init_db():
-    db_path = Path(__file__).resolve().parent / "call_logs.db"
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS call_logs (
-      id              INTEGER PRIMARY KEY AUTOINCREMENT,
-      customer_phone  TEXT NOT NULL,
-      agent_id        TEXT NOT NULL,
-      amount          REAL NOT NULL,
-      outcome         TEXT NOT NULL,
-      timestamp       TEXT NOT NULL,
-      attempt_number  INTEGER DEFAULT 1,
-      notes           TEXT
-    );
-    """)
-    conn.commit()
-    conn.close()
-
-init_db()
-
 def _log_attempt(customer_phone: str, agent_id: str, amount: float, outcome: str, timestamp: str, attempt_number: int, notes: str = None):
-    db_path = Path(__file__).resolve().parent / "call_logs.db"
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("""
-    INSERT INTO call_logs (customer_phone, agent_id, amount, outcome, timestamp, attempt_number, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (customer_phone, agent_id, amount, outcome, timestamp, attempt_number, notes))
-    conn.commit()
-    conn.close()
+    db = SessionLocal()
+    try:
+        dt = datetime.utcnow()
+        if timestamp:
+            try:
+                dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00")).replace(tzinfo=None)
+            except Exception:
+                pass
+
+        log_entry = VoiceCallLog(
+            customer_phone=customer_phone,
+            agent_id=agent_id,
+            amount=amount,
+            outcome=outcome,
+            timestamp=dt,
+            attempt_number=attempt_number,
+            notes=notes
+        )
+        db.add(log_entry)
+        db.commit()
+        logger.info(f"Persisted VoiceCallLog to Supabase PostgreSQL for agent {agent_id}, phone {customer_phone}")
+    except Exception as e:
+        logger.error(f"Failed to log voice attempt to Supabase PostgreSQL: {str(e)}")
+        db.rollback()
+    finally:
+        db.close()
 
 def trigger_payment_reminder_call(
     customer_phone: str,
