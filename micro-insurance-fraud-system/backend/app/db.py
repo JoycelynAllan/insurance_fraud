@@ -19,6 +19,20 @@ DATABASE_URL = (
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Redacted URL logging for startup diagnostics
+redacted_url = DATABASE_URL
+if "@" in redacted_url:
+    prefix, rest = redacted_url.split("@", 1)
+    scheme = prefix.split("://")[0] if "://" in prefix else "db"
+    redacted_url = f"{scheme}://***:***@{rest}"
+
+logger.warning(f"[DB RUNTIME CONFIG] Resolved Database Connection URL: {redacted_url}")
+print(f"[DB RUNTIME CONFIG] Resolved Database Connection URL: {redacted_url}")
+
 # Setup engine with robust pool settings
 if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(

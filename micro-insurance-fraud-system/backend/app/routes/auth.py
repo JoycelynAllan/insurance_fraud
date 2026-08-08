@@ -46,11 +46,19 @@ def register_user(body: RegisterRequest, db: Session = Depends(get_db)):
         branch=body.branch
     )
     
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    return {"message": "Account created successfully", "user_id": new_user.id}
+    try:
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        logger.info(f"[DB REGISTER SUCCESS] User '{new_user.email}' (ID: {new_user.id}) inserted and committed successfully.")
+        return {"message": "Account created successfully", "user_id": new_user.id}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"[DB REGISTER ERROR] Failed to commit new user '{body.email}': {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database commit error: {str(e)}"
+        )
 
 
 @router.post("/login")
