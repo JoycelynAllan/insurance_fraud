@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -15,6 +16,8 @@ from backend.app.utils.auth_guard import (
     ACCESS_TOKEN_EXPIRE_HOURS,
     security
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -58,17 +61,19 @@ def register_user(body: RegisterRequest, db: Session = Depends(get_db)):
         return {"message": "Account created successfully", "user_id": new_user.id}
     except IntegrityError as ie:
         db.rollback()
-        logger.warning(f"[DB REGISTER DUPLICATE] Unique constraint violation for email '{clean_email}': {str(ie)}")
+        err_msg = str(ie)
+        logger.warning(f"[DB REGISTER DUPLICATE] Unique constraint violation for email '{clean_email}': {err_msg}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
-    except Exception as e:
+    except Exception as exc:
         db.rollback()
-        logger.error(f"[DB REGISTER EXCEPTION] Failed to commit new user '{clean_email}': {str(e)}", exc_info=True)
+        err_msg = str(exc)
+        logger.error(f"[DB REGISTER EXCEPTION] Failed to commit new user '{clean_email}': {err_msg}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database commit error: {str(e)}"
+            detail=f"Database commit error: {err_msg}"
         )
 
 
