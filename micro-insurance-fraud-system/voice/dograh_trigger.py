@@ -58,20 +58,26 @@ def trigger_payment_reminder_call(
     timestamp = datetime.utcnow().isoformat() + "Z"
     
     # Load settings from environment
-    api_url = os.environ.get("DOGRAH_API_URL", "http://localhost:8000")
-    api_token = os.environ.get("DOGRAH_API_TOKEN", "mock_token")
-    workflow_id_str = os.environ.get("DOGRAH_WORKFLOW_ID", "1")
+    api_url = os.environ.get("DOGRAH_API_URL", "https://api.dograh.com")
+    api_token = os.environ.get("DOGRAH_API_KEY") or os.environ.get("DOGRAH_API_TOKEN", "mock_token")
+    workflow_id_str = os.environ.get("DOGRAH_WORKFLOW_ID", "9611")
+    telephony_config_id_str = os.environ.get("DOGRAH_TELEPHONY_CONFIG_ID", "963")
     
-    if api_token == "mock_token" or "localhost" in api_url:
+    if api_token in [None, "mock_token", "your_dograh_api_key_here"] or "localhost" in api_url:
         logger.warning(
-            f"[DOGRAH DIAGNOSTIC] Using fallback credentials (api_url={api_url}, api_token={api_token}). "
-            "If deployed on Render, set DOGRAH_API_URL and DOGRAH_API_TOKEN in Render environment variables."
+            f"[DOGRAH DIAGNOSTIC] Using fallback/mock credentials (api_url={api_url}, api_token={api_token}). "
+            "Set DOGRAH_API_KEY and DOGRAH_API_URL on Render environment variables for live dispatch."
         )
 
     try:
         workflow_id = int(workflow_id_str)
     except ValueError:
-        workflow_id = 1
+        workflow_id = 9611
+
+    try:
+        telephony_config_id = int(telephony_config_id_str)
+    except ValueError:
+        telephony_config_id = 963
 
     outcome = "failed"
     notes = None
@@ -85,7 +91,7 @@ def trigger_payment_reminder_call(
             pass
 
         with DograhClient(base_url=api_url, api_key=api_token) as client:
-            # Place outbound call via Dograh Client
+            # Place outbound call via Dograh Client targeting Workflow 9611
             resp = client.test_phone_call(
                 body=InitiateCallRequest(
                     workflow_id=workflow_id,
@@ -96,7 +102,7 @@ def trigger_payment_reminder_call(
             # Extract run name from JSON response or string representation
             message = ""
             if isinstance(resp, dict):
-                message = resp.get("message", "")
+                message = resp.get("message", "") or str(resp)
             elif hasattr(resp, "message"):
                 message = resp.message
             else:
@@ -138,18 +144,24 @@ def trigger_payment_reminder_call(
                                     else:
                                         outcome = "failed"
                                 else:
-                                    outcome = "answered"  # fallback if no callbacks (completed state implies success)
-                                notes = f"Completed run ID {run_id}"
+                                    outcome = "answered"
+                                notes = f"[Workflow {workflow_id} / Vonage Config {telephony_config_id}] Completed run ID {run_id}"
                                 break
                         time.sleep(1)
                 else:
-                    notes = f"Could not resolve run ID for name: {run_name}"
+                    notes = f"[Workflow {workflow_id}] Could not resolve run ID for name: {run_name}"
             else:
-                notes = f"Initiate response did not match run name. Msg: {message}"
+                notes = f"[Workflow {workflow_id} / Vonage Config {telephony_config_id}] Dograh API accepted call request but returned: {message}"
     except Exception as e:
-        logger.error(f"Error connecting to Dograh outbound endpoint: {str(e)}")
+        logger.error(f"Error connecting to Dograh outbound endpoint (Workflow {workflow_id}): {str(e)}")
         outcome = "failed"
-        notes = f"Dograh connection error: {str(e)}"
+        err_msg = str(e)
+        if "401" in err_msg or "403" in err_msg:
+            notes = f"[Dograh Auth Failure] API Key invalid or rejected (Workflow {workflow_id}): {err_msg}"
+        elif "number" in err_msg.lower() or "telephony" in err_msg.lower() or "vonage" in err_msg.lower():
+            notes = f"[Telephony Pending] Workflow {workflow_id} / Vonage Config {telephony_config_id} requires paid phone number: {err_msg}"
+        else:
+            notes = f"[Dograh API Exception] Workflow {workflow_id} connection error: {err_msg}"
 
     # Log attempt details to SQLite3 call_logs
     _log_attempt(customer_phone, agent_id, amount, outcome, timestamp, attempt_number, notes)
@@ -163,7 +175,9 @@ def trigger_payment_reminder_call(
         "notes": notes,
         "timestamp": timestamp,
         "customer_phone": customer_phone,
-        "agent_id": agent_id
+        "agent_id": agent_id,
+        "workflow_id": workflow_id,
+        "telephony_config_id": telephony_config_id
     }
 
 def schedule_retry(
