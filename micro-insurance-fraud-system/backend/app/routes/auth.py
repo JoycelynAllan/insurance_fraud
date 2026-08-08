@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from backend.app.db import get_db
 from backend.app.models.user import User, UserSession
@@ -30,8 +32,10 @@ class LoginRequest(BaseModel):
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register_user(body: RegisterRequest, db: Session = Depends(get_db)):
     """Create a new user with standard analyst permissions."""
-    # Check if the user email already exists
-    existing_user = db.query(User).filter(User.email == body.email).first()
+    clean_email = body.email.strip().lower()
+    
+    # Check if the user email already exists (case-insensitive)
+    existing_user = db.query(User).filter(func.lower(User.email) == clean_email).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -39,8 +43,8 @@ def register_user(body: RegisterRequest, db: Session = Depends(get_db)):
         )
     
     new_user = User(
-        full_name=body.full_name,
-        email=body.email,
+        full_name=body.full_name.strip(),
+        email=clean_email,
         password_hash=hash_password(body.password),
         role="analyst",  # default role for new registrants
         branch=body.branch
@@ -52,9 +56,16 @@ def register_user(body: RegisterRequest, db: Session = Depends(get_db)):
         db.refresh(new_user)
         logger.info(f"[DB REGISTER SUCCESS] User '{new_user.email}' (ID: {new_user.id}) inserted and committed successfully.")
         return {"message": "Account created successfully", "user_id": new_user.id}
+    except IntegrityError as ie:
+        db.rollback()
+        logger.warning(f"[DB REGISTER DUPLICATE] Unique constraint violation for email '{clean_email}': {str(ie)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
     except Exception as e:
         db.rollback()
-        logger.error(f"[DB REGISTER ERROR] Failed to commit new user '{body.email}': {str(e)}")
+        logger.error(f"[DB REGISTER EXCEPTION] Failed to commit new user '{clean_email}': {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database commit error: {str(e)}"
