@@ -56,3 +56,17 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def auto_migrate_schema():
+    """Idempotently adds missing columns to pre-existing PostgreSQL tables on Supabase."""
+    if engine.dialect.name == "postgresql":
+        try:
+            from sqlalchemy import text
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(30);"))
+                conn.execute(text("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE;"))
+                conn.execute(text("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS branch VARCHAR(50);"))
+                conn.execute(text("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;"))
+            logger.info("[DB SCHEMA SYNC] Successfully verified/updated public.users table schema in Supabase PostgreSQL.")
+        except Exception as e:
+            logger.warning(f"[DB SCHEMA SYNC] Table schema verification warning: {str(e)}")

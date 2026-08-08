@@ -23,10 +23,11 @@ from backend.app.ml import fraud_detection
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize PostgreSQL tables
-    from backend.app.db import engine, Base
+    # Initialize PostgreSQL tables and auto-migrate missing columns
+    from backend.app.db import engine, Base, auto_migrate_schema
     import backend.app.models
     Base.metadata.create_all(bind=engine)
+    auto_migrate_schema()
 
     # Seed database with synthetic agent data if tables are empty
     from backend.app.utils.seed_db import seed_if_empty
@@ -83,6 +84,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Global CORS-preserving exception handlers
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"[GLOBAL EXCEPTION] {request.method} {request.url.path}: {str(exc)}", exc_info=True)
+    response = JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal Server Error: {str(exc)}"}
+    )
+    origin = request.headers.get("origin")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
 
 # Import and include routing
 from backend.app.routes.analyze import router as analyze_router
