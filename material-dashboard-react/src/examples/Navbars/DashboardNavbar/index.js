@@ -57,15 +57,77 @@ import {
 
 import SmsOtpDialog from "components/SmsOtpDialog";
 
+import { getApiBase } from "utils/apiConfig";
+
 function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
   const [navbarType, setNavbarType] = useState();
   const [controller, dispatch] = useMaterialUIController();
   const { miniSidenav, transparentNavbar, fixedNavbar, openConfigurator, darkMode } = controller;
   const [openMenu, setOpenMenu] = useState(false);
   const [otpOpen, setOtpOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const navigate = useNavigate();
   const token = localStorage.getItem("mifds_token");
   const userName = localStorage.getItem("mifds_user_name") || "User";
+
+  // Fetch real notifications (Fraud Alerts & Voice IVR Confirmations)
+  useEffect(() => {
+    let isMounted = true;
+    const fetchNotifications = async () => {
+      if (!token) return;
+      try {
+        const apiBase = getApiBase();
+        const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
+
+        const [alertsRes, voiceRes] = await Promise.allSettled([
+          axios.get(`${apiBase}/api/alerts?limit=3`, authHeaders),
+          axios.get(`${apiBase}/api/voice/logs?limit=3`, authHeaders),
+        ]);
+
+        const items = [];
+        if (alertsRes.status === "fulfilled" && alertsRes.value.data?.alerts) {
+          alertsRes.value.data.alerts.forEach((alert) => {
+            items.push({
+              id: `alert-${alert.id}`,
+              type: "alert",
+              title: `Fraud Alert: ${alert.agent_id}`,
+              subtitle: `${alert.flag_reason} (Risk: ${alert.risk_score}%)`,
+              icon: "warning",
+              route: "/fraud",
+            });
+          });
+        }
+
+        if (voiceRes.status === "fulfilled" && voiceRes.value.data?.logs) {
+          voiceRes.value.data.logs.forEach((log) => {
+            if (log.outcome === "payment_confirmed_by_customer") {
+              items.push({
+                id: `voice-${log.id}`,
+                type: "voice",
+                title: `Payment Confirmed: ${log.customer_phone}`,
+                subtitle: `GHS ${log.amount} confirmed via Voice IVR`,
+                icon: "check_circle",
+                route: "/voice-campaigns",
+              });
+            }
+          });
+        }
+
+        if (isMounted && items.length > 0) {
+          setNotifications(items.slice(0, 5));
+        }
+      } catch (err) {
+        console.error("Failed to fetch notification items:", err);
+      }
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [token]);
 
   const handleLogout = async () => {
     try {
@@ -87,7 +149,6 @@ function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
     if (showGhanaTime) {
       const updateTime = () => {
         const now = new Date();
-        // Format to Ghana time (GMT+0 / UTC)
         const options = {
           timeZone: "UTC",
           hour: "2-digit",
@@ -105,28 +166,18 @@ function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
   }, [showGhanaTime]);
 
   useEffect(() => {
-    // Setting the navbar type
     if (fixedNavbar) {
       setNavbarType("sticky");
     } else {
       setNavbarType("static");
     }
 
-    // A function that sets the transparent state of the navbar.
     function handleTransparentNavbar() {
       setTransparentNavbar(dispatch, (fixedNavbar && window.scrollY === 0) || !fixedNavbar);
     }
 
-    /** 
-     The event listener that's calling the handleTransparentNavbar function when 
-     scrolling the window.
-    */
     window.addEventListener("scroll", handleTransparentNavbar);
-
-    // Call the handleTransparentNavbar function to set the state with the initial value.
     handleTransparentNavbar();
-
-    // Remove event listener on cleanup
     return () => window.removeEventListener("scroll", handleTransparentNavbar);
   }, [dispatch, fixedNavbar]);
 
@@ -135,7 +186,14 @@ function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
   const handleOpenMenu = (event) => setOpenMenu(event.currentTarget);
   const handleCloseMenu = () => setOpenMenu(false);
 
-  // Render the notifications menu
+  const handleNotificationClick = (targetRoute) => {
+    handleCloseMenu();
+    if (targetRoute) {
+      navigate(targetRoute);
+    }
+  };
+
+  // Render the notifications menu with real data
   const renderMenu = () => (
     <Menu
       anchorEl={openMenu}
@@ -148,9 +206,21 @@ function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
       onClose={handleCloseMenu}
       sx={{ mt: 2 }}
     >
-      <NotificationItem icon={<Icon>email</Icon>} title="Check new messages" />
-      <NotificationItem icon={<Icon>podcasts</Icon>} title="Manage Podcast sessions" />
-      <NotificationItem icon={<Icon>shopping_cart</Icon>} title="Payment successfully completed" />
+      {notifications.length === 0 ? (
+        <NotificationItem
+          icon={<Icon>notifications_none</Icon>}
+          title="No active fraud notifications"
+        />
+      ) : (
+        notifications.map((item) => (
+          <NotificationItem
+            key={item.id}
+            icon={<Icon>{item.icon}</Icon>}
+            title={`${item.title} - ${item.subtitle}`}
+            onClick={() => handleNotificationClick(item.route)}
+          />
+        ))
+      )}
     </Menu>
   );
 
