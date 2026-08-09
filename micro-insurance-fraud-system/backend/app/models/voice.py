@@ -11,6 +11,7 @@ class VoiceCallLog(Base):
     amount = Column(Float, nullable=False)
     outcome = Column(String(50), nullable=False, index=True)
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    called_at = Column(DateTime, default=datetime.utcnow, nullable=True, index=True)
     attempt_number = Column(Integer, default=1, nullable=False)
     notes = Column(Text, nullable=True)
     

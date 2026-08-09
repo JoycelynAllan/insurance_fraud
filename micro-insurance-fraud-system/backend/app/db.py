@@ -70,6 +70,7 @@ def auto_migrate_schema():
                 conn.execute(text("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;"))
 
                 # Voice Call Logs table schema
+                conn.execute(text("ALTER TABLE public.voice_call_logs ADD COLUMN IF NOT EXISTS called_at TIMESTAMP;"))
                 conn.execute(text("ALTER TABLE public.voice_call_logs ADD COLUMN IF NOT EXISTS session_id VARCHAR(100);"))
                 conn.execute(text("ALTER TABLE public.voice_call_logs ADD COLUMN IF NOT EXISTS client_request_id VARCHAR(100);"))
                 conn.execute(text("ALTER TABLE public.voice_call_logs ADD COLUMN IF NOT EXISTS language_pref VARCHAR(20) DEFAULT 'twi';"))

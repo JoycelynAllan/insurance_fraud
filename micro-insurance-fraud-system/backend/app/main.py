@@ -127,6 +127,7 @@ app.include_router(agents_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(voice_router, prefix="/api")
 app.include_router(voice_callback_router, prefix="/api")
+app.include_router(voice_callback_router)
 app.include_router(otp_router, prefix="/api")
 app.include_router(otp_router, prefix="/api/auth")
 
