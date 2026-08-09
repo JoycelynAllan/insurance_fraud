@@ -18,7 +18,7 @@ except ImportError:
 from backend.app.db import SessionLocal
 from backend.app.models.transaction import Transaction, TransactionFeature
 from backend.app.ml.fraud_detection import score_transaction
-from voice.dograh_trigger import trigger_payment_reminder_call
+from backend.app.services.voice_service import make_outbound_call
 
 def run_test():
     print("Connecting to database...")
@@ -71,9 +71,9 @@ def run_test():
         assert is_fraud == True, "Expected is_fraud == True"
         print("[OK] Assertions passed: transaction is classified as fraudulent.")
 
-        # 4. Call trigger_payment_reminder_call()
+        # 4. Call make_outbound_call()
         print(f"Triggering payment reminder call to {customer_phone} (Agent {agent_id}, Amount GHS {amount})")
-        outcome_dict = trigger_payment_reminder_call(
+        outcome_dict = make_outbound_call(
             customer_phone=customer_phone,
             agent_id=agent_id,
             amount=amount
@@ -82,20 +82,12 @@ def run_test():
         # 5. Print the call outcome
         print(f"Call trigger result: {outcome_dict}")
 
-        # 6. Query voice/call_logs.db and print the last 3 rows to confirm log was written
-        db_path = Path(__file__).resolve().parents[2] / "micro-insurance-fraud-system" / "voice" / "call_logs.db"
-        if not db_path.exists():
-            db_path = Path(__file__).resolve().parents[2] / "voice" / "call_logs.db"
-            
-        print(f"Querying call logs database at {db_path}...")
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM call_logs ORDER BY id DESC LIMIT 3")
-        rows = cursor.fetchall()
-        print("--- LAST 3 CALL LOGS ---")
-        for row in rows:
-            print(row)
-        conn.close()
+        # 6. Query Supabase PostgreSQL VoiceCallLog to confirm log was written
+        from backend.app.models.voice import VoiceCallLog
+        last_log = db.query(VoiceCallLog).order_by(VoiceCallLog.timestamp.desc()).first()
+        print("--- LAST VOICE CALL LOG IN SUPABASE ---")
+        if last_log:
+            print(f"ID: {last_log.id}, Phone: {last_log.customer_phone}, Agent: {last_log.agent_id}, Outcome: {last_log.outcome}, Notes: {last_log.notes}")
 
     finally:
         db.close()

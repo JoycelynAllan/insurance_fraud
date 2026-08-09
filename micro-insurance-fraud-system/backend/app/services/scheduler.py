@@ -6,7 +6,7 @@ from backend.app.models.transaction import Transaction, TransactionFeature
 from backend.app.models.alert import FraudAlert
 from backend.app.ml.fraud_detection import score_transaction
 from backend.app.routes.alerts import broadcast_alert
-from voice.dograh_trigger import trigger_payment_reminder_call
+from backend.app.services.voice_service import make_outbound_call
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +51,8 @@ async def run_fraud_check_job():
                 if tx.customer_phone and tx.customer_phone not in called_phones:
                     called_phones.add(tx.customer_phone)
                     try:
-                        logger.info(f"Triggering outbound voice reminder for customer {tx.customer_phone}")
-                        trigger_payment_reminder_call(
+                        logger.info(f"Triggering outbound Africa's Talking voice reminder for customer {tx.customer_phone}")
+                        make_outbound_call(
                             customer_phone=tx.customer_phone,
                             agent_id=tx.agent_id,
                             amount=float(tx.amount)
