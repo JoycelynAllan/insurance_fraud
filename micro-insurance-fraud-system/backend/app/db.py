@@ -58,11 +58,11 @@ def get_db():
         db.close()
 
 def auto_migrate_schema():
-    """Idempotently adds missing columns to pre-existing PostgreSQL tables on Supabase."""
-    if engine.dialect.name == "postgresql":
-        try:
-            from sqlalchemy import text
-            with engine.begin() as conn:
+    """Idempotently adds missing columns to pre-existing PostgreSQL / SQLite tables."""
+    try:
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            if engine.dialect.name == "postgresql":
                 # Users table schema
                 conn.execute(text("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(30);"))
                 conn.execute(text("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE;"))
@@ -84,7 +84,18 @@ def auto_migrate_schema():
                 # Fraud Alerts table schema
                 conn.execute(text("ALTER TABLE public.fraud_alerts ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'PENDING';"))
                 conn.execute(text("ALTER TABLE public.fraud_alerts ADD COLUMN IF NOT EXISTS acknowledged_at TIMESTAMP;"))
+            elif engine.dialect.name == "sqlite":
+                # SQLite column migrations
+                for col_stmt in [
+                    "ALTER TABLE fraud_alerts ADD COLUMN status VARCHAR(30) DEFAULT 'PENDING';",
+                    "ALTER TABLE fraud_alerts ADD COLUMN acknowledged_at TIMESTAMP;",
+                    "ALTER TABLE voice_call_logs ADD COLUMN called_at TIMESTAMP;"
+                ]:
+                    try:
+                        conn.execute(text(col_stmt))
+                    except Exception:
+                        pass
 
-            logger.info("[DB SCHEMA SYNC] Successfully verified/updated database table schemas in Supabase PostgreSQL.")
-        except Exception as e:
-            logger.warning(f"[DB SCHEMA SYNC] Table schema verification warning: {str(e)}")
+        logger.info("[DB SCHEMA SYNC] Successfully verified/updated database table schemas.")
+    except Exception as e:
+        logger.warning(f"[DB SCHEMA SYNC] Table schema verification warning: {str(e)}")

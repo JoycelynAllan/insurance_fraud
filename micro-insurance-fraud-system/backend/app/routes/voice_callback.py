@@ -108,4 +108,9 @@ def get_voice_logs_endpoint(
             "language_pref": r.language_pref,
             "dtmf_digits": r.dtmf_digits
         })
-    return logs_list
+    return {
+        "total": len(logs_list),
+        "limit": len(logs_list),
+        "offset": 0,
+        "logs": logs_list
+    }

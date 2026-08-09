@@ -43,12 +43,18 @@ function AlertPanel() {
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          // Ignore server keep-alive ping messages
-          if (data && (data.type === "ping" || data.type === "error")) {
+          // Filter out ping and error messages
+          if (!data || data.type === "ping" || data.type === "error") {
             return;
           }
-          // Prepend real fraud alert to the list (newest first)
-          setAlerts((prevAlerts) => [data, ...prevAlerts]);
+
+          // Update alerts list deduplicated by agent_id and sorted by risk_score desc
+          setAlerts((prevAlerts) => {
+            const filtered = prevAlerts.filter((a) => a.agent_id !== data.agent_id);
+            const updated = [data, ...filtered];
+            updated.sort((a, b) => (b.risk_score || 0) - (a.risk_score || 0));
+            return updated;
+          });
         } catch (e) {
           console.error("Error parsing WebSocket message data:", e);
         }
@@ -86,6 +92,28 @@ function AlertPanel() {
     if (status === "Connected") return "success";
     if (status === "Connecting") return "warning";
     return "error";
+  };
+
+  const getBadgeColor = (statusStr) => {
+    switch ((statusStr || "").toUpperCase()) {
+      case "RESOLVED":
+        return "success";
+      case "INVESTIGATING":
+        return "warning";
+      case "PENDING":
+      default:
+        return "error";
+    }
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "-";
+    try {
+      const dt = new Date(dateStr);
+      return dt.toLocaleString();
+    } catch (e) {
+      return dateStr;
+    }
   };
 
   return (
@@ -147,7 +175,7 @@ function AlertPanel() {
             </MDBox>
           ) : (
             alerts.map((alert, index) => (
-              <MDBox key={index} mb={2}>
+              <MDBox key={alert.agent_id || index} mb={2}>
                 <MDBox
                   p={2}
                   borderRadius="lg"
@@ -159,19 +187,18 @@ function AlertPanel() {
                 >
                   <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                     <MDBox display="flex" alignItems="center">
-                      <MDBadge
-                        badgeContent="FRAUD ALERT"
-                        color="error"
-                        variant="gradient"
-                        size="xs"
-                        sx={{ mr: 1 }}
-                      />
-                      <MDTypography variant="button" fontWeight="bold" color="error">
+                      <MDTypography variant="button" fontWeight="bold" color="dark" sx={{ mr: 1 }}>
                         {alert.agent_id}
                       </MDTypography>
+                      <MDBadge
+                        badgeContent={alert.status || "PENDING"}
+                        color={getBadgeColor(alert.status)}
+                        variant="gradient"
+                        size="xs"
+                      />
                     </MDBox>
                     <MDTypography variant="caption" color="text" fontWeight="medium">
-                      {alert.timestamp ? new Date(alert.timestamp).toLocaleTimeString() : ""}
+                      {formatDate(alert.created_at || alert.timestamp)}
                     </MDTypography>
                   </MDBox>
                   <MDTypography
@@ -188,7 +215,12 @@ function AlertPanel() {
                       Risk Score:
                     </MDTypography>
                     <MDTypography variant="caption" color="error" fontWeight="bold">
-                      {alert.risk_score ? alert.risk_score.toFixed(1) : "0.0"}%
+                      {typeof alert.risk_score === "number"
+                        ? alert.risk_score <= 1.0
+                          ? (alert.risk_score * 100).toFixed(1)
+                          : alert.risk_score.toFixed(1)
+                        : alert.risk_score}
+                      %
                     </MDTypography>
                   </MDBox>
                 </MDBox>

@@ -68,8 +68,12 @@ function VoiceCampaigns() {
         params,
       });
 
-      setLogs(response.data.logs || []);
-      setTotal(response.data.total || 0);
+      const rawLogs = Array.isArray(response.data) ? response.data : response.data.logs || [];
+      const totalCount = Array.isArray(response.data)
+        ? response.data.length
+        : response.data.total || rawLogs.length;
+      setLogs(rawLogs);
+      setTotal(totalCount);
     } catch (err) {
       console.error("Error fetching voice campaign logs:", err);
       if (err.response && err.response.data && err.response.data.detail) {

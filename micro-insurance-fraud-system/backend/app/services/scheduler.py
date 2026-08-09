@@ -60,41 +60,46 @@ async def run_fraud_check_job():
                     except Exception as ve:
                         logger.error(f"Voice reminder call trigger failed: {str(ve)}")
 
-            # Broadcast and persist if risk score >= 70
-            if risk_score >= 70:
-                # Check for duplicate alerts for this transaction within the last hour
-                one_hour_ago = datetime.utcnow() - timedelta(hours=1)
-                duplicate = db.query(FraudAlert).filter(
-                    FraudAlert.transaction_id == tx.id,
-                    FraudAlert.alerted_at >= one_hour_ago
+            # Broadcast and persist if risk score >= 70 (or 0.70)
+            score_pct = risk_score * 100.0 if risk_score <= 1.0 else risk_score
+            if score_pct >= 70.0:
+                # Check if a PENDING alert already exists for this agent
+                pending_alert = db.query(FraudAlert).filter(
+                    FraudAlert.agent_id == tx.agent_id,
+                    FraudAlert.status == "PENDING"
                 ).first()
                 
-                if not duplicate:
-                    logger.info(f"High risk transaction detected! Saving alert to DB: Tx ID {tx.id}, Agent {tx.agent_id}")
+                if not pending_alert:
+                    now_dt = datetime.utcnow()
+                    flag_reason_str = str(scored.get("flag_reason", f"Risk score {score_pct:.1f}% flagged by ML model"))
+                    logger.info(f"High risk transaction detected! Saving PENDING alert to DB: Tx ID {tx.id}, Agent {tx.agent_id}, Score {score_pct:.1f}%")
+                    
                     # Persist alert to database
                     alert_obj = FraudAlert(
                         agent_id=tx.agent_id,
                         transaction_id=tx.id,
-                        risk_score=risk_score,
-                        flag_reason=str(scored['flag_reason']),
+                        risk_score=score_pct,
+                        flag_reason=flag_reason_str,
                         branch=tx.branch,
-                        alerted_at=datetime.utcnow(),
+                        status="PENDING",
+                        alerted_at=now_dt,
                         acknowledged=False
                     )
                     db.add(alert_obj)
                     db.commit()
+                    db.refresh(alert_obj)
                     
                     # Broadcast via WebSocket
                     alert_payload = {
                         "agent_id": str(tx.agent_id),
-                        "risk_score": risk_score,
-                        "is_fraud": bool(scored['is_fraud']),
-                        "flag_reason": str(scored['flag_reason']),
-                        "timestamp": tx.timestamp.strftime('%Y-%m-%dT%H:%M:%SZ')
+                        "risk_score": score_pct,
+                        "flag_reason": flag_reason_str,
+                        "status": "PENDING",
+                        "created_at": now_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
                     }
                     await broadcast_alert(alert_payload)
                 else:
-                    logger.info(f"Duplicate alert for Transaction {tx.id} within the same hour was suppressed.")
+                    logger.info(f"PENDING alert for Agent {tx.agent_id} already exists in DB. Suppressing duplicate creation.")
                     
     except Exception as e:
         logger.error(f"Exception raised in run_fraud_check_job: {str(e)}")
