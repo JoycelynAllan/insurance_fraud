@@ -20,10 +20,16 @@ function AlertPanel() {
 
   useEffect(() => {
     let reconnectTimeout = null;
+    let delay = 3000; // start with 3s backoff
 
     const connectWebSocket = () => {
       setStatus("Connecting");
       const token = localStorage.getItem("mifds_token") || "";
+      if (!token) {
+        setStatus("Disconnected");
+        return;
+      }
+
       const wsBase = getWsBase();
       const socket = new WebSocket(`${wsBase}/api/alerts?token=${encodeURIComponent(token)}`);
       socketRef.current = socket;
@@ -31,13 +37,18 @@ function AlertPanel() {
       socket.onopen = () => {
         console.log("WebSocket connection established");
         setStatus("Connected");
+        delay = 3000; // reset backoff on successful connection
       };
 
       socket.onmessage = (event) => {
         try {
-          const newAlert = JSON.parse(event.data);
-          // Prepend the new alert to the list (newest first)
-          setAlerts((prevAlerts) => [newAlert, ...prevAlerts]);
+          const data = JSON.parse(event.data);
+          // Ignore server keep-alive ping messages
+          if (data && (data.type === "ping" || data.type === "error")) {
+            return;
+          }
+          // Prepend real fraud alert to the list (newest first)
+          setAlerts((prevAlerts) => [data, ...prevAlerts]);
         } catch (e) {
           console.error("Error parsing WebSocket message data:", e);
         }
@@ -49,10 +60,12 @@ function AlertPanel() {
       };
 
       socket.onclose = () => {
-        console.log("WebSocket connection closed");
+        console.log(`WebSocket connection closed. Reconnecting in ${delay / 1000}s...`);
         setStatus("Disconnected");
-        // Attempt reconnection after 5 seconds
-        reconnectTimeout = setTimeout(connectWebSocket, 5000);
+        reconnectTimeout = setTimeout(() => {
+          connectWebSocket();
+        }, delay);
+        delay = Math.min(delay * 1.5, 30000); // exponential backoff capped at 30s
       };
     };
 

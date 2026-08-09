@@ -7,6 +7,16 @@ from backend.app.db import SessionLocal
 from backend.app.models.user import UserSession
 from backend.app.utils.auth_guard import SECRET_KEY, ALGORITHM
 
+import asyncio
+import logging
+import json
+from datetime import datetime
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+from jose import jwt, JWTError
+from backend.app.db import SessionLocal
+from backend.app.models.user import UserSession
+from backend.app.utils.auth_guard import SECRET_KEY, ALGORITHM
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -15,45 +25,59 @@ active_connections: list[WebSocket] = []
 
 @router.websocket("/alerts")
 async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+
     token = websocket.query_params.get("token")
     if not token:
-        # Reject connection without token
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        logger.warning("[WS ALERTS] Connection rejected: Token missing in query parameters")
+        try:
+            await websocket.send_json({"type": "error", "message": "Authentication token missing"})
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        except Exception:
+            pass
         return
-        
+
     db = SessionLocal()
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
         if not user_id:
+            await websocket.send_json({"type": "error", "message": "Invalid token payload"})
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
-            
+
         db_session = db.query(UserSession).filter(UserSession.token == token).first()
         if not db_session or db_session.expires_at < datetime.utcnow():
+            await websocket.send_json({"type": "error", "message": "Session expired or invalid"})
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
-    except JWTError:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+    except JWTError as e:
+        logger.warning(f"[WS ALERTS] Connection rejected: Invalid JWT token - {str(e)}")
+        try:
+            await websocket.send_json({"type": "error", "message": "JWT authentication failed"})
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        except Exception:
+            pass
         return
     finally:
         db.close()
 
-    await websocket.accept()
     active_connections.append(websocket)
-    logger.info(f"WebSocket client connected. Total connections: {len(active_connections)}")
+    logger.info(f"[WS ALERTS] WebSocket client connected. Active connections: {len(active_connections)}")
+
     try:
         while True:
-            # Maintain connection alive, listen for text messages (we ignore them)
-            await websocket.receive_text()
+            # Send periodic ping keep-alive every 20s to prevent Render proxy idle timeouts
+            await asyncio.sleep(20)
+            await websocket.send_json({"type": "ping", "timestamp": datetime.utcnow().isoformat() + "Z"})
     except WebSocketDisconnect:
         if websocket in active_connections:
             active_connections.remove(websocket)
-        logger.info(f"WebSocket client disconnected. Total connections: {len(active_connections)}")
+        logger.info(f"[WS ALERTS] WebSocket client disconnected gracefully. Active connections: {len(active_connections)}")
     except Exception as e:
         if websocket in active_connections:
             active_connections.remove(websocket)
-        logger.error(f"WebSocket connection error: {str(e)}")
+        logger.error(f"[WS ALERTS] Unexpected WebSocket error: {str(e)}")
 
 async def broadcast_alert(alert: dict):
     if not active_connections:
