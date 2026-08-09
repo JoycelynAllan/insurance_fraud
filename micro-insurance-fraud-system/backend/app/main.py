@@ -86,8 +86,11 @@ app.add_middleware(
 )
 
 # Global CORS-preserving exception handlers
+import logging
 from fastapi import Request
 from fastapi.responses import JSONResponse
+
+logger = logging.getLogger(__name__)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -103,11 +106,19 @@ async def global_exception_handler(request: Request, exc: Exception):
     return response
 
 # Import and include routing
+from fastapi.staticfiles import StaticFiles
+
+# Mount static audio files for voice prompts
+audio_dir = Path(__file__).resolve().parent / "voice" / "audio"
+if audio_dir.exists():
+    app.mount("/static/audio", StaticFiles(directory=str(audio_dir)), name="audio")
+
 from backend.app.routes.analyze import router as analyze_router
 from backend.app.routes.alerts import router as alerts_router
 from backend.app.routes.agents import router as agents_router
 from backend.app.routes.auth import router as auth_router
 from backend.app.routes.voice import router as voice_router
+from backend.app.routes.voice_callback import router as voice_callback_router
 from backend.app.routes.otp import router as otp_router
 
 app.include_router(analyze_router, prefix="/api")
@@ -115,6 +126,7 @@ app.include_router(alerts_router, prefix="/api")
 app.include_router(agents_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(voice_router, prefix="/api")
+app.include_router(voice_callback_router, prefix="/api")
 app.include_router(otp_router, prefix="/api")
 app.include_router(otp_router, prefix="/api/auth")
 

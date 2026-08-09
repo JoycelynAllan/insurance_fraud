@@ -18,4 +18,5 @@ passlib[bcrypt]
 python-jose[cryptography]
 supabase
 email-validator
-dograh-sdk
+python-multipart
+gTTS

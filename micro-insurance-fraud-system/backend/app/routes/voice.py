@@ -9,7 +9,7 @@ from backend.app.utils.auth_guard import get_current_user
 from backend.app.models.user import User
 from backend.app.models.transaction import Transaction
 from backend.app.models.voice import VoiceCallLog
-from voice.dograh_trigger import trigger_payment_reminder_call
+from backend.app.services.voice_service import make_outbound_call
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -18,11 +18,13 @@ class VoiceTriggerRequest(BaseModel):
     agent_id: str = Field(..., description="Agent ID associated with the reminder")
     customer_phone: str = Field(None, description="Customer phone number (optional, defaults to latest in DB)")
     amount: float = Field(None, description="Remittance amount to call about (optional, defaults to latest in DB)")
+    language_pref: str = Field("twi", description="Preferred language for call audio: 'twi' or 'dagbani'")
+    alert_id: int = Field(None, description="Optional Fraud Alert ID associated with this call")
 
 @router.get("/voice/logs")
 def get_voice_logs(
     agent_id: str = Query(None, description="Filter by agent ID"),
-    outcome: str = Query(None, description="Filter by outcome (e.g. answered, no_answer, failed)"),
+    outcome: str = Query(None, description="Filter by outcome (e.g. queued, answered, completed, failed)"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     current_user: User = Depends(get_current_user),
@@ -52,7 +54,10 @@ def get_voice_logs(
                 "outcome": r.outcome,
                 "timestamp": r.timestamp.isoformat() + "Z" if r.timestamp else None,
                 "attempt_number": r.attempt_number,
-                "notes": r.notes
+                "notes": r.notes,
+                "session_id": r.session_id,
+                "language_pref": r.language_pref,
+                "dtmf_digits": r.dtmf_digits
             })
             
         return {
@@ -75,12 +80,13 @@ def trigger_voice_call(
     db: Session = Depends(get_db)
 ):
     """
-    On-demand endpoint to trigger an outbound telephony payment reminder for an agent.
-    If customer details are omitted, it automatically fetches the latest transaction records.
+    On-demand endpoint to trigger an outbound Africa's Talking voice payment reminder.
     """
     agent_id = body.agent_id
     customer_phone = body.customer_phone
     amount = body.amount
+    language_pref = body.language_pref
+    alert_id = body.alert_id
     
     # Auto-resolve phone and amount if missing
     if not customer_phone or amount is None:
@@ -101,27 +107,21 @@ def trigger_voice_call(
             amount = float(latest_tx.amount)
             
     try:
-        # Fire call via Dograh client integration
-        logger.info(f"Manually triggering call via Dograh: agent={agent_id}, phone={customer_phone}, amount={amount}")
-        result = trigger_payment_reminder_call(
+        logger.info(f"Triggering AT Voice Call: agent={agent_id}, phone={customer_phone}, amount={amount}, lang={language_pref}")
+        result = make_outbound_call(
             customer_phone=customer_phone,
             agent_id=agent_id,
-            amount=amount
+            amount=amount,
+            alert_id=alert_id,
+            language_pref=language_pref
         )
         return {
             "status": "success",
-            "message": f"Payment reminder outbound call triggered. Call outcome: {result.get('outcome', 'unknown')}",
-            "data": {
-                "outcome": result.get("outcome"),
-                "notes": result.get("notes"),
-                "timestamp": result.get("timestamp"),
-                "customer_phone": customer_phone,
-                "agent_id": agent_id,
-                "amount": amount
-            }
+            "message": f"Africa's Talking voice call triggered. Outcome: {result.get('outcome', 'queued')}",
+            "data": result
         }
     except Exception as e:
-        logger.error(f"Error manually triggering voice call: {str(e)}")
+        logger.error(f"Error triggering voice call: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Outbound trigger execution failed: {str(e)}"

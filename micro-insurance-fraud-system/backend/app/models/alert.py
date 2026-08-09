@@ -15,6 +15,8 @@ class FraudAlert(Base):
     alerted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     acknowledged = Column(Boolean, default=False, nullable=False)
     acknowledged_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    acknowledged_at = Column(DateTime, nullable=True)
+    status = Column(String(30), default="PENDING", nullable=False)  # PENDING, INVESTIGATING, RESOLVED
 
     # Relationships
     agent = relationship("Agent", back_populates="alerts")

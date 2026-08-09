@@ -67,3 +67,98 @@ async def broadcast_alert(alert: dict):
             logger.error(f"Error sending message to WebSocket client: {str(e)}")
             if connection in active_connections:
                 active_connections.remove(connection)
+
+# REST API Endpoints for Fraud Alerts
+from fastapi import Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from backend.app.db import get_db
+from backend.app.models.alert import FraudAlert
+from backend.app.models.user import User
+from backend.app.utils.auth_guard import get_current_user
+
+class AcknowledgeAlertRequest(BaseModel):
+    status: str = "INVESTIGATING"  # INVESTIGATING or RESOLVED
+
+@router.get("/alerts")
+def get_fraud_alerts(
+    status_filter: str = Query(None, alias="status"),
+    agent_id: str = Query(None),
+    branch: str = Query(None),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Fetch fraud alerts from Supabase PostgreSQL."""
+    query = db.query(FraudAlert)
+    if status_filter:
+        query = query.filter(FraudAlert.status == status_filter)
+    if agent_id:
+        query = query.filter(FraudAlert.agent_id == agent_id)
+    if branch:
+        query = query.filter(FraudAlert.branch == branch)
+
+    total_count = query.count()
+    alerts = query.order_by(FraudAlert.alerted_at.desc()).offset(offset).limit(limit).all()
+
+    items = []
+    for a in alerts:
+        items.append({
+            "id": a.id,
+            "agent_id": a.agent_id,
+            "transaction_id": a.transaction_id,
+            "risk_score": float(a.risk_score),
+            "flag_reason": a.flag_reason,
+            "branch": a.branch,
+            "alerted_at": a.alerted_at.isoformat() + "Z" if a.alerted_at else None,
+            "acknowledged": a.acknowledged,
+            "acknowledged_by": a.acknowledged_by,
+            "acknowledged_at": a.acknowledged_at.isoformat() + "Z" if a.acknowledged_at else None,
+            "status": a.status or "PENDING"
+        })
+
+    return {
+        "total": total_count,
+        "limit": limit,
+        "offset": offset,
+        "alerts": items
+    }
+
+@router.post("/alerts/{alert_id}/acknowledge")
+def acknowledge_fraud_alert(
+    alert_id: int,
+    body: AcknowledgeAlertRequest = AcknowledgeAlertRequest(),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Acknowledge or update status of a fraud alert."""
+    alert = db.query(FraudAlert).filter(FraudAlert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail=f"Fraud alert ID {alert_id} not found.")
+
+    target_status = (body.status or "INVESTIGATING").upper()
+    if target_status not in ["PENDING", "INVESTIGATING", "RESOLVED"]:
+        raise HTTPException(status_code=400, detail="Status must be 'PENDING', 'INVESTIGATING', or 'RESOLVED'.")
+
+    alert.status = target_status
+    alert.acknowledged = True
+    alert.acknowledged_by = current_user.id
+    alert.acknowledged_at = datetime.utcnow()
+    db.commit()
+    db.refresh(alert)
+
+    logger.info(f"[ALERT ACKNOWLEDGED] User {current_user.email} updated alert {alert.id} status to {target_status}")
+
+    return {
+        "status": "success",
+        "message": f"Alert {alert.id} status updated to {target_status}",
+        "alert": {
+            "id": alert.id,
+            "agent_id": alert.agent_id,
+            "status": alert.status,
+            "acknowledged": alert.acknowledged,
+            "acknowledged_by": alert.acknowledged_by,
+            "acknowledged_at": alert.acknowledged_at.isoformat() + "Z"
+        }
+    }
