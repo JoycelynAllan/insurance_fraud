@@ -49,6 +49,13 @@ def generate_synthetic_data():
         size=2000
     )
 
+    # Customer call language_pref: english / twi / dagbani (40% / 35% / 25%)
+    language_prefs = np.random.choice(
+        ['english', 'twi', 'dagbani'],
+        size=2000,
+        p=[0.40, 0.35, 0.25]
+    )
+
     # Assemble base DataFrame
     df = pd.DataFrame({
         'agent_id': agent_ids,
@@ -58,7 +65,8 @@ def generate_synthetic_data():
         'timestamp': pd.to_datetime(timestamps),
         'payment_method': payment_methods,
         'remittance_status': remittance_statuses,
-        'branch': branches
+        'branch': branches,
+        'language_pref': language_prefs
     })
 
     # Output paths (using pathlib.Path(__file__).parent for dynamic resolution)

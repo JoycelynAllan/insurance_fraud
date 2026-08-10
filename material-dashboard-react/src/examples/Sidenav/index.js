@@ -83,14 +83,7 @@ function Sidenav({ color, brand, brandName, routes, ...rest }) {
     return () => window.removeEventListener("resize", handleMiniSidenav);
   }, [dispatch, location]);
 
-  const userRole = localStorage.getItem("mifds_user_role") || "supervisor";
-  const visibleRoutes = routes.filter((r) => {
-    if (r.type === "auth" || r.type === "route") return false;
-    if (userRole === "agent") {
-      return r.key === "agent-profile";
-    }
-    return true;
-  });
+  const visibleRoutes = routes.filter((r) => r.type === "collapse");
 
   // Render all the routes from the routes.js (All the visible items on the Sidenav)
   const renderRoutes = visibleRoutes.map(

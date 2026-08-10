@@ -35,6 +35,8 @@ import Footer from "examples/Footer";
 
 import { getApiBase } from "utils/apiConfig";
 
+import toast from "react-hot-toast";
+
 function VoiceCampaigns() {
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
@@ -97,15 +99,13 @@ function VoiceCampaigns() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setTriggerSuccess("Manual call scheduled successfully!");
+      toast.success("Manual call scheduled successfully!");
       fetchLogs();
-      setTimeout(() => {
-        setModalOpen(false);
-        setTriggerSuccess("");
-        setManualPhone("");
-      }, 1500);
+      setModalOpen(false);
+      setManualPhone("");
     } catch (err) {
       console.error("Failed to trigger manual voice reminder call:", err);
+      toast.error("Failed to schedule call. Please try again.");
     } finally {
       setTriggerLoading(false);
     }

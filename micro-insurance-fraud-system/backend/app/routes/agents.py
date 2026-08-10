@@ -16,8 +16,6 @@ ml_path_str = str(ml_dir)
 if ml_path_str not in sys.path:
     sys.path.insert(0, ml_path_str)
 
-from backend.app.ml.fraud_detection import score_transaction
-
 router = APIRouter()
 
 # GET /api/agents and GET /api/agents/risk
@@ -25,15 +23,9 @@ router = APIRouter()
 @router.get("/agents/risk")
 def get_agents_risk(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
-    Returns risk scoring details for all agents, sorted descending by risk score.
-    Forbidden for agent role users (supervisors only).
+    Returns risk scoring details for all monitored agents, sorted descending by risk score.
+    Accessible to all authenticated supervisors.
     """
-    if current_user.role == "agent":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden: Agents cannot access the full agent risk list."
-        )
-
     records = db.query(Transaction, TransactionFeature).join(
         TransactionFeature, Transaction.id == TransactionFeature.transaction_id
     ).all()
@@ -53,6 +45,7 @@ def get_agents_risk(request: Request, current_user: User = Depends(get_current_u
             "agent_id": aid,
             "branch": tx.branch,
             "customer_phone": tx.customer_phone,
+            "language_pref": getattr(tx, "language_pref", "english") or "english",
             "risk_score": float(feat.risk_score) if feat.risk_score is not None else 0.0,
             "is_fraud": bool(feat.is_fraud),
             "flag_reason": feat.flag_reason,
@@ -73,17 +66,8 @@ def get_agent_transactions(
 ):
     """
     Returns all transactions for a specific agent.
-    If requesting user is an agent, only allows fetching their own agent_id (returns 403 otherwise).
-    Supervisors can query any agent_id.
+    Accessible to authenticated supervisors.
     """
-    if current_user.role == "agent":
-        user_agent_id = getattr(current_user, "agent_id", None) or "AGT041"
-        if agent_id != user_agent_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Forbidden: Agents can only view their own transactions."
-            )
-
     records = db.query(Transaction, TransactionFeature).join(
         TransactionFeature, Transaction.id == TransactionFeature.transaction_id
     ).filter(
@@ -99,6 +83,8 @@ def get_agent_transactions(
             "amount": float(tx.amount),
             "payment_method": tx.payment_method,
             "remittance_status": tx.remittance_status,
+            "branch": tx.branch,
+            "language_pref": getattr(tx, "language_pref", "english") or "english",
             "risk_score": float(feat.risk_score) if feat.risk_score is not None else 0.0,
             "is_fraud": bool(feat.is_fraud),
             "flag_reason": feat.flag_reason,
@@ -111,16 +97,8 @@ def get_agent_transactions(
 @router.get("/agents/{agent_id}/trend")
 def get_agent_trend(agent_id: str, request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
-    Returns the last 30 days of transactions for a specific agent from the DB.
+    Returns transaction history trend for a specific agent.
     """
-    if current_user.role == "agent":
-        user_agent_id = getattr(current_user, "agent_id", None) or "AGT041"
-        if agent_id != user_agent_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Forbidden: Agents can only view their own trend."
-            )
-
     latest_tx = db.query(Transaction).order_by(Transaction.timestamp.desc()).first()
     anchor_date = latest_tx.timestamp if latest_tx else datetime.utcnow()
     cutoff_date = anchor_date - timedelta(days=30)

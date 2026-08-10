@@ -86,6 +86,9 @@ def auto_migrate_schema():
                 # Fraud Alerts table schema
                 conn.execute(text("ALTER TABLE public.fraud_alerts ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'PENDING';"))
                 conn.execute(text("ALTER TABLE public.fraud_alerts ADD COLUMN IF NOT EXISTS acknowledged_at TIMESTAMP;"))
+
+                # Transactions table schema
+                conn.execute(text("ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS language_pref VARCHAR(20) DEFAULT 'english';"))
             elif engine.dialect.name == "sqlite":
                 # SQLite column migrations
                 for col_stmt in [
@@ -97,7 +100,8 @@ def auto_migrate_schema():
                     "ALTER TABLE users ADD COLUMN last_login TIMESTAMP;",
                     "ALTER TABLE fraud_alerts ADD COLUMN status VARCHAR(30) DEFAULT 'PENDING';",
                     "ALTER TABLE fraud_alerts ADD COLUMN acknowledged_at TIMESTAMP;",
-                    "ALTER TABLE voice_call_logs ADD COLUMN called_at TIMESTAMP;"
+                    "ALTER TABLE voice_call_logs ADD COLUMN called_at TIMESTAMP;",
+                    "ALTER TABLE transactions ADD COLUMN language_pref VARCHAR(20) DEFAULT 'english';"
                 ]:
                     try:
                         conn.execute(text(col_stmt))

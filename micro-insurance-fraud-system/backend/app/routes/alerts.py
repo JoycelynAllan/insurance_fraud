@@ -66,16 +66,17 @@ async def websocket_endpoint(websocket: WebSocket):
     active_connections.append(websocket)
     logger.info(f"[WS ALERTS] WebSocket client connected. Active connections: {len(active_connections)}")
 
-    # Query and send existing PENDING alerts immediately on connection
+    # Query and send existing PENDING and INVESTIGATING alerts immediately on connection
     db = SessionLocal()
     try:
         from backend.app.models.alert import FraudAlert
         pending_alerts = db.query(FraudAlert).filter(
-            (FraudAlert.status == "PENDING") | (FraudAlert.acknowledged == False)
+            FraudAlert.status.in_(["PENDING", "INVESTIGATING"])
         ).order_by(FraudAlert.risk_score.desc()).all()
         
         for a in pending_alerts:
             payload = {
+                "id": a.id,
                 "agent_id": str(a.agent_id),
                 "risk_score": float(a.risk_score) if a.risk_score is not None else 0.0,
                 "flag_reason": str(a.flag_reason or f"Risk score {a.risk_score}% flagged by ML model"),

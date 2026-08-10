@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 // @mui material components
 import Card from "@mui/material/Card";
-import Grid from "@mui/material/Grid";
 import TableContainer from "@mui/material/TableContainer";
 import Table from "@mui/material/Table";
 import TableHead from "@mui/material/TableHead";
@@ -15,6 +15,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import Icon from "@mui/material/Icon";
+import Tooltip from "@mui/material/Tooltip";
 
 // Material Dashboard 2 React components
 import MDBox from "components/MDBox";
@@ -24,12 +25,18 @@ import MDButton from "components/MDButton";
 
 import { getApiBase } from "utils/apiConfig";
 
-function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearBranchFilter }) {
+function AgentRiskTable({
+  selectedAgentId,
+  onSelectAgent,
+  branchFilter,
+  onClearBranchFilter,
+  onAlertUpdated,
+}) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
-  const [actionMessage, setActionMessage] = useState("");
+  const [investigatingAgents, setInvestigatingAgents] = useState(new Set());
 
   const fetchData = async () => {
     setLoading(true);
@@ -61,20 +68,42 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearB
     setSearch(event.target.value);
   };
 
-  const handleInvestigate = async (agentId, alertId = 1) => {
+  const handleInvestigate = async (agentId) => {
     try {
       const apiBase = getApiBase();
       const token = localStorage.getItem("mifds_token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      // 1. Find PENDING alert for this agent
+      const alertsRes = await axios.get(
+        `${apiBase}/api/alerts?agent_id=${agentId}&status=PENDING`,
+        { headers }
+      );
+      const alertList = alertsRes.data?.alerts || [];
+
+      if (alertList.length === 0) {
+        toast.error(`No active PENDING alert for Agent ${agentId}`);
+        return;
+      }
+
+      const alertId = alertList[0].id;
+
+      // 2. Acknowledge alert
       await axios.post(
         `${apiBase}/api/alerts/${alertId}/acknowledge`,
         { status: "INVESTIGATING" },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers }
       );
-      setActionMessage(`Investigation opened for Agent ${agentId}`);
-      setTimeout(() => setActionMessage(""), 4000);
-      fetchData();
+
+      setInvestigatingAgents((prev) => new Set(prev).add(agentId));
+      toast.success(`Alert for ${agentId} marked as Investigating`);
+
+      if (onAlertUpdated) {
+        onAlertUpdated(agentId, "INVESTIGATING");
+      }
     } catch (err) {
       console.error("Failed to set status to INVESTIGATING:", err);
+      toast.error("Failed to update alert. Please try again.");
     }
   };
 
@@ -82,20 +111,22 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearB
     try {
       const apiBase = getApiBase();
       const token = localStorage.getItem("mifds_token");
+      const lang = agentRow.language_pref || "english";
+
       await axios.post(
         `${apiBase}/api/voice/trigger`,
         {
           customer_phone: agentRow.customer_phone || "+233200000000",
           agent_id: agentRow.agent_id,
           amount: agentRow.amount || 150.0,
-          language: agentRow.language_pref || "english",
+          language: lang,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setActionMessage(`Outbound reminder call dispatched for Agent ${agentRow.agent_id}`);
-      setTimeout(() => setActionMessage(""), 4000);
+      toast.success(`SMS reminder scheduled for customer of ${agentRow.agent_id} in ${lang}`);
     } catch (err) {
       console.error("Failed to trigger outbound voice reminder:", err);
+      toast.error("Failed to schedule call. Please try again.");
     }
   };
 
@@ -172,14 +203,6 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearB
         />
       </MDBox>
 
-      {actionMessage && (
-        <MDBox px={2} pt={2} textAlign="center">
-          <MDTypography variant="caption" color="success" fontWeight="bold">
-            {actionMessage}
-          </MDTypography>
-        </MDBox>
-      )}
-
       <MDBox pt={2} px={2} pb={2} flexGrow={1} display="flex" flexDirection="column">
         {loading ? (
           <MDBox display="flex" justifyContent="center" alignItems="center" flexGrow={1} py={8}>
@@ -228,7 +251,8 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearB
                       ? row.risk_score
                       : parseFloat(row.risk_score) || 0.0;
                   const scorePct = numericScore <= 1.0 ? numericScore * 100 : numericScore;
-                  const isDisabled = scorePct < 40.0;
+                  const isBelowThreshold = scorePct < 40.0;
+                  const isInvestigating = investigatingAgents.has(agentId);
 
                   return (
                     <TableRow
@@ -263,7 +287,7 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearB
                       </TableCell>
                       <TableCell align="center">
                         <MDTypography variant="caption" color="text" fontWeight="medium">
-                          {row.status || "pending"}
+                          {isInvestigating ? "INVESTIGATING" : row.status || "pending"}
                         </MDTypography>
                       </TableCell>
                       <TableCell align="right">
@@ -273,26 +297,58 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearB
                       </TableCell>
                       <TableCell align="center" onClick={(e) => e.stopPropagation()}>
                         <MDBox display="flex" gap={0.5} justifyContent="center">
-                          <MDButton
-                            variant="gradient"
-                            color="warning"
-                            size="small"
-                            disabled={isDisabled}
-                            onClick={() => handleInvestigate(agentId, row.id || 1)}
-                            sx={{ py: 0.3, px: 1, fontSize: "0.65rem" }}
-                          >
-                            Investigate
-                          </MDButton>
-                          <MDButton
-                            variant="gradient"
-                            color="info"
-                            size="small"
-                            disabled={isDisabled}
-                            onClick={() => handleCallCustomer(row)}
-                            sx={{ py: 0.3, px: 1, fontSize: "0.65rem" }}
-                          >
-                            Call Customer
-                          </MDButton>
+                          {isBelowThreshold ? (
+                            <Tooltip title="Risk score below threshold — no action needed">
+                              <span>
+                                <MDButton
+                                  variant="gradient"
+                                  color="secondary"
+                                  size="small"
+                                  disabled
+                                  sx={{ py: 0.3, px: 1, fontSize: "0.65rem" }}
+                                >
+                                  Investigate
+                                </MDButton>
+                              </span>
+                            </Tooltip>
+                          ) : (
+                            <MDButton
+                              variant="gradient"
+                              color={isInvestigating ? "warning" : "info"}
+                              size="small"
+                              disabled={isInvestigating}
+                              onClick={() => handleInvestigate(agentId)}
+                              sx={{ py: 0.3, px: 1, fontSize: "0.65rem" }}
+                            >
+                              {isInvestigating ? "INVESTIGATING" : "Investigate"}
+                            </MDButton>
+                          )}
+
+                          {isBelowThreshold ? (
+                            <Tooltip title="Risk score below threshold — no action needed">
+                              <span>
+                                <MDButton
+                                  variant="gradient"
+                                  color="secondary"
+                                  size="small"
+                                  disabled
+                                  sx={{ py: 0.3, px: 1, fontSize: "0.65rem" }}
+                                >
+                                  Call Customer
+                                </MDButton>
+                              </span>
+                            </Tooltip>
+                          ) : (
+                            <MDButton
+                              variant="gradient"
+                              color="dark"
+                              size="small"
+                              onClick={() => handleCallCustomer(row)}
+                              sx={{ py: 0.3, px: 1, fontSize: "0.65rem" }}
+                            >
+                              Call Customer
+                            </MDButton>
+                          )}
                         </MDBox>
                       </TableCell>
                     </TableRow>
@@ -312,11 +368,13 @@ AgentRiskTable.propTypes = {
   onSelectAgent: PropTypes.func.isRequired,
   branchFilter: PropTypes.string,
   onClearBranchFilter: PropTypes.func,
+  onAlertUpdated: PropTypes.func,
 };
 
 AgentRiskTable.defaultProps = {
   branchFilter: "",
   onClearBranchFilter: () => {},
+  onAlertUpdated: () => {},
 };
 
 export default AgentRiskTable;

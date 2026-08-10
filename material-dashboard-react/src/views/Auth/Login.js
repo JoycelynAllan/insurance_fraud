@@ -31,17 +31,13 @@ function Login() {
   const location = useLocation();
 
   useEffect(() => {
-    // If user is already authenticated with a valid unexpired token, redirect
+    // If user is already authenticated with a valid unexpired token, redirect to /fraud
     const user = getCurrentUser();
     if (user) {
-      if (user.role === "agent") {
-        navigate("/agent-profile", { replace: true });
-      } else {
-        navigate("/fraud", { replace: true });
-      }
+      navigate("/fraud", { replace: true });
     }
 
-    // Check for success message from state (e.g. redirected from Register)
+    // Check for success message from state
     if (location.state && location.state.message) {
       setSuccess(location.state.message);
     }
@@ -63,24 +59,23 @@ function Login() {
         password,
       });
 
-      const { access_token, full_name, role, branch, agent_id } = response.data;
+      const { access_token, full_name, role, branch } = response.data;
 
       // Store session details in localStorage
       localStorage.setItem("mifds_token", access_token);
       localStorage.setItem("mifds_user_name", full_name);
       localStorage.setItem("mifds_user_role", role);
       if (branch) localStorage.setItem("mifds_user_branch", branch);
-      if (agent_id) localStorage.setItem("mifds_user_agent_id", agent_id);
 
-      // Redirect based on role
-      if (role === "agent") {
-        navigate("/agent-profile");
-      } else {
-        navigate("/fraud");
-      }
+      // Always redirect supervisors to /fraud
+      navigate("/fraud", { replace: true });
     } catch (err) {
       console.error("[Auth Error - Login Failed]", err);
-      if (err.response && err.response.data && err.response.data.detail) {
+      if (err.response && err.response.status === 403) {
+        setError(
+          "Field agents do not have access to this system. Please contact your branch supervisor."
+        );
+      } else if (err.response && err.response.data && err.response.data.detail) {
         setError(err.response.data.detail);
       } else {
         setError("Invalid email or password");
@@ -108,7 +103,7 @@ function Login() {
             MicroInsure Fraud Monitor
           </MDTypography>
           <MDTypography variant="caption" color="white" sx={{ mt: 1, display: "block" }}>
-            Insurance fraud detection for Ghana&apos;s micro-insurance sector
+            Supervisor &amp; Branch Manager Access Only
           </MDTypography>
         </MDBox>
         <MDBox pt={4} pb={3} px={3}>

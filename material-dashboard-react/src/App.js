@@ -83,12 +83,13 @@ import { useMaterialUIController, setMiniSidenav, setOpenConfigurator } from "co
 import brandWhite from "assets/images/logo-ct.png";
 import brandDark from "assets/images/logo-ct-dark.png";
 
+import { Toaster } from "react-hot-toast";
+
 import { getCurrentUser } from "utils/auth";
 
 function RootRedirect() {
   const user = getCurrentUser();
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role === "agent") return <Navigate to="/agent-profile" replace />;
   return <Navigate to="/fraud" replace />;
 }
 
@@ -214,6 +215,7 @@ export default function App() {
   ) : (
     <ThemeProvider theme={darkMode ? themeDark : theme}>
       <CssBaseline />
+      <Toaster position="top-right" />
       {layout === "dashboard" && (
         <>
           <Sidenav

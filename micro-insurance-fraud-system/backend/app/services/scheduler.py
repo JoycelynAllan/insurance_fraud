@@ -49,11 +49,8 @@ async def run_fraud_check_job():
             risk_score = float(scored['risk_score'])
             score_pct = risk_score * 100.0 if risk_score <= 1.0 else risk_score
 
-            # Look up customer/agent language preference from users table
-            user_rec = db.query(User).filter(
-                (User.agent_id == tx.agent_id) | (User.branch == tx.branch)
-            ).first()
-            customer_lang = user_rec.language_pref if (user_rec and hasattr(user_rec, 'language_pref') and user_rec.language_pref) else "english"
+            # Look up customer call language preference directly from transaction row
+            customer_lang = getattr(tx, "language_pref", "english") or "english"
 
             # Trigger automated retry schedule if remittance_status == "missed"
             if tx.remittance_status == "missed" and tx.customer_phone:

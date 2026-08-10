@@ -15,6 +15,7 @@ class Transaction(Base):
     payment_method = Column(String(20), nullable=True)
     remittance_status = Column(String(20), nullable=True)
     branch = Column(String(50), nullable=True)
+    language_pref = Column(String(20), default="english", nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships

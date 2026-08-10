@@ -5,7 +5,6 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import FormControl from "@mui/material/FormControl";
-import FormHelperText from "@mui/material/FormHelperText";
 import axios from "axios";
 
 // Material Dashboard 2 React components
@@ -27,33 +26,24 @@ function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState("supervisor"); // supervisor or agent
   const [branch, setBranch] = useState("");
-  const [languagePref, setLanguagePref] = useState("english"); // english, twi, dagbani
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If user is already authenticated with valid unexpired token, redirect
+    // If supervisor is already authenticated with valid unexpired token, redirect to /fraud
     const user = getCurrentUser();
     if (user) {
-      if (user.role === "agent") {
-        navigate("/agent-profile", { replace: true });
-      } else {
-        navigate("/fraud", { replace: true });
-      }
+      navigate("/fraud", { replace: true });
     }
   }, [navigate]);
 
   const validateForm = () => {
-    if (!fullName || !email || !password || !confirmPassword || !role) {
+    if (!fullName || !email || !password || !confirmPassword || !branch) {
       return "Please fill in all required fields.";
-    }
-
-    if (role === "agent" && !branch) {
-      return "Branch office is required for Field Agents.";
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -75,6 +65,7 @@ function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
 
     const validationError = validateForm();
     if (validationError) {
@@ -90,15 +81,16 @@ function Register() {
         full_name: fullName,
         email,
         password,
-        role,
-        branch: branch || undefined,
-        language_pref: languagePref,
+        branch,
+        role: "supervisor",
       });
 
-      // Redirect to login with requested success message
-      navigate("/login", {
-        state: { message: "Account created. Please log in." },
-      });
+      setSuccess("Account created. Please log in.");
+      setTimeout(() => {
+        navigate("/login", {
+          state: { message: "Account created. Please log in." },
+        });
+      }, 2000);
     } catch (err) {
       console.error("[Auth Error - Registration Failed]", err);
       if (err.response && err.response.data && err.response.data.detail) {
@@ -129,14 +121,21 @@ function Register() {
             Join MicroInsure
           </MDTypography>
           <MDTypography variant="caption" color="white" sx={{ mt: 1, display: "block" }}>
-            Register to access your role dashboard
+            Supervisor &amp; Branch Manager Portal — Internal Use Only
           </MDTypography>
         </MDBox>
-        <MDBox pt={4} pb={3} px={3}>
+        <MDBox pt={3} pb={3} px={3}>
           {error && (
             <MDBox mb={2} textAlign="center">
               <MDTypography variant="button" color="error" fontWeight="medium">
                 {error}
+              </MDTypography>
+            </MDBox>
+          )}
+          {success && (
+            <MDBox mb={2} textAlign="center">
+              <MDTypography variant="button" color="success" fontWeight="medium">
+                {success}
               </MDTypography>
             </MDBox>
           )}
@@ -182,68 +181,25 @@ function Register() {
               />
             </MDBox>
 
-            {/* Dropdown 1: Role Selection */}
+            {/* Branch Selection Dropdown */}
             <MDBox mb={2}>
               <FormControl fullWidth size="medium">
-                <InputLabel id="role-select-label">I am a</InputLabel>
+                <InputLabel id="branch-select-label">Your Branch Office</InputLabel>
                 <Select
-                  labelId="role-select-label"
-                  id="role-select"
-                  value={role}
-                  label="I am a"
-                  onChange={(e) => setRole(e.target.value)}
+                  labelId="branch-select-label"
+                  id="branch-select"
+                  value={branch}
+                  label="Your Branch Office"
+                  onChange={(e) => setBranch(e.target.value)}
                   required
                   sx={{ height: "44px" }}
                 >
-                  <MenuItem value="supervisor">Supervisor / Branch Manager</MenuItem>
-                  <MenuItem value="agent">Field Agent</MenuItem>
+                  <MenuItem value="Accra">Accra</MenuItem>
+                  <MenuItem value="Kumasi">Kumasi</MenuItem>
+                  <MenuItem value="Tamale">Tamale</MenuItem>
+                  <MenuItem value="Takoradi">Takoradi</MenuItem>
+                  <MenuItem value="Cape_Coast">Cape Coast</MenuItem>
                 </Select>
-              </FormControl>
-            </MDBox>
-
-            {/* Dropdown 2: Branch Selection (Required for Field Agent) */}
-            {role === "agent" && (
-              <MDBox mb={2}>
-                <FormControl fullWidth size="medium">
-                  <InputLabel id="branch-select-label">Branch</InputLabel>
-                  <Select
-                    labelId="branch-select-label"
-                    id="branch-select"
-                    value={branch}
-                    label="Branch"
-                    onChange={(e) => setBranch(e.target.value)}
-                    required
-                    sx={{ height: "44px" }}
-                  >
-                    <MenuItem value="Accra">Accra</MenuItem>
-                    <MenuItem value="Kumasi">Kumasi</MenuItem>
-                    <MenuItem value="Tamale">Tamale</MenuItem>
-                    <MenuItem value="Takoradi">Takoradi</MenuItem>
-                    <MenuItem value="Cape_Coast">Cape Coast</MenuItem>
-                  </Select>
-                </FormControl>
-              </MDBox>
-            )}
-
-            {/* Dropdown 3: Customer Call Language Selection */}
-            <MDBox mb={2}>
-              <FormControl fullWidth size="medium">
-                <InputLabel id="language-select-label">Customer Call Language</InputLabel>
-                <Select
-                  labelId="language-select-label"
-                  id="language-select"
-                  value={languagePref}
-                  label="Customer Call Language"
-                  onChange={(e) => setLanguagePref(e.target.value)}
-                  sx={{ height: "44px" }}
-                >
-                  <MenuItem value="english">English</MenuItem>
-                  <MenuItem value="twi">Twi</MenuItem>
-                  <MenuItem value="dagbani">Dagbani</MenuItem>
-                </Select>
-                <FormHelperText>
-                  This is the language used when calling your customers about missed payments
-                </FormHelperText>
               </FormControl>
             </MDBox>
 
