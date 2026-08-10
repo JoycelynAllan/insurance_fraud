@@ -1,56 +1,67 @@
 from datetime import datetime
-from backend.app.db import SessionLocal, engine, Base, auto_migrate_schema
+from backend.app.db import SessionLocal
 from backend.app.models.alert import FraudAlert
-
-# Ensure tables and columns exist
-Base.metadata.create_all(bind=engine)
-auto_migrate_schema()
+from backend.app.models.transaction import Transaction, TransactionFeature
 
 db = SessionLocal()
 try:
-    print("--- STEP 5 SEEDING ALERTS ---")
-    
-    # 1. Seed AGT031
-    existing_31 = db.query(FraudAlert).filter(FraudAlert.agent_id == "AGT031").first()
-    if not existing_31:
-        alert_31 = FraudAlert(
-            agent_id="AGT031",
-            transaction_id=1,
-            risk_score=95.9,
-            flag_reason="Risk score 95.9% — pending remittance with high cash ratio detected",
-            status="PENDING",
-            alerted_at=datetime.utcnow(),
-            acknowledged=False
-        )
-        db.add(alert_31)
-        print("Inserted PENDING alert for AGT031 (95.9%)")
-    else:
-        existing_31.risk_score = 95.9
-        existing_31.flag_reason = "Risk score 95.9% — pending remittance with high cash ratio detected"
-        existing_31.status = "PENDING"
-        print("Updated PENDING alert for AGT031 (95.9%)")
+    print("--- SEEDING PENDING FRAUD ALERTS FOR HIGH RISK AGENTS ---")
 
-    # 2. Seed AGT041
-    existing_41 = db.query(FraudAlert).filter(FraudAlert.agent_id == "AGT041").first()
-    if not existing_41:
-        alert_41 = FraudAlert(
-            agent_id="AGT041",
-            transaction_id=2,
-            risk_score=95.7,
-            flag_reason="Risk score 95.7% — missed remittance flagged by ML model",
+    # Get latest transaction & feature per agent
+    records = db.query(Transaction, TransactionFeature).join(
+        TransactionFeature, Transaction.id == TransactionFeature.transaction_id
+    ).all()
+
+    agent_latest = {}
+    for tx, feat in records:
+        aid = tx.agent_id
+        if aid not in agent_latest or tx.timestamp > agent_latest[aid][0].timestamp:
+            agent_latest[aid] = (tx, feat)
+
+    high_risk_agents = []
+    for aid, (tx, feat) in agent_latest.items():
+        score = float(feat.risk_score) if feat.risk_score is not None else 0.0
+        score_pct = score * 100.0 if score <= 1.0 else score
+        if score_pct >= 70.0:
+            high_risk_agents.append((aid, score_pct, tx, feat))
+
+    print(f"Found {len(high_risk_agents)} high-risk agents (>= 70%)")
+
+    inserted_count = 0
+    for aid, score_pct, tx, feat in high_risk_agents:
+        # Check if PENDING or INVESTIGATING alert already exists
+        existing = db.query(FraudAlert).filter(
+            FraudAlert.agent_id == aid,
+            FraudAlert.status.in_(["PENDING", "INVESTIGATING"])
+        ).first()
+
+        if existing:
+            print(f"Active alert already exists for Agent {aid} (Status: {existing.status}) — skipping")
+            continue
+
+        reason = feat.flag_reason or f"Risk score {score_pct:.1f}% — automated ML detection"
+        new_alert = FraudAlert(
+            agent_id=aid,
+            transaction_id=tx.id,
+            risk_score=score_pct,
+            flag_reason=reason,
+            branch=tx.branch,
             status="PENDING",
             alerted_at=datetime.utcnow(),
             acknowledged=False
         )
-        db.add(alert_41)
-        print("Inserted PENDING alert for AGT041 (95.7%)")
-    else:
-        existing_41.risk_score = 95.7
-        existing_41.flag_reason = "Risk score 95.7% — missed remittance flagged by ML model"
-        existing_41.status = "PENDING"
-        print("Updated PENDING alert for AGT041 (95.7%)")
+        db.add(new_alert)
+        inserted_count += 1
+        print(f"Inserted PENDING alert for {aid} at {score_pct:.1f}%")
 
     db.commit()
-    print("Database seeding completed successfully.")
+    print(f"Done seeding alerts! Total new PENDING alerts inserted: {inserted_count}")
+
+    # Print current active alerts summary
+    active_alerts = db.query(FraudAlert).filter(FraudAlert.status.in_(["PENDING", "INVESTIGATING"])).all()
+    print(f"Active PENDING/INVESTIGATING alerts in DB now: {len(active_alerts)}")
+    for a in active_alerts:
+        print(f" - Alert ID {a.id}: Agent {a.agent_id}, Score {a.risk_score}%, Status {a.status}")
+
 finally:
     db.close()

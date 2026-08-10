@@ -75,13 +75,17 @@ async def websocket_endpoint(websocket: WebSocket):
         ).order_by(FraudAlert.risk_score.desc()).all()
         
         for a in pending_alerts:
+            sc = float(a.risk_score) if a.risk_score is not None else 0.0
+            sc_pct = f"{round(sc * 100, 1)}%" if sc <= 1.0 else f"{round(sc, 1)}%"
             payload = {
-                "id": a.id,
+                "type": "alert",
+                "id": str(a.id),
                 "agent_id": str(a.agent_id),
-                "risk_score": float(a.risk_score) if a.risk_score is not None else 0.0,
-                "flag_reason": str(a.flag_reason or f"Risk score {a.risk_score}% flagged by ML model"),
+                "risk_score": sc,
+                "risk_score_pct": sc_pct,
+                "flag_reason": str(a.flag_reason or f"Risk score {sc_pct} flagged by ML model"),
                 "status": str(a.status or "PENDING"),
-                "created_at": a.alerted_at.strftime('%Y-%m-%dT%H:%M:%SZ') if a.alerted_at else datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+                "created_at": a.alerted_at.isoformat() + "Z" if a.alerted_at else datetime.utcnow().isoformat() + "Z"
             }
             await websocket.send_json(payload)
     except Exception as fetch_err:
@@ -103,18 +107,35 @@ async def websocket_endpoint(websocket: WebSocket):
             active_connections.remove(websocket)
         logger.error(f"[WS ALERTS] Unexpected WebSocket error: {str(e)}")
 
-async def broadcast_alert(alert: dict):
+async def broadcast_alert(alert_data: dict):
     if not active_connections:
         return
-    logger.info(f"Broadcasting alert to {len(active_connections)} clients: {alert}")
-    alert_str = json.dumps(alert)
+    logger.info(f"Broadcasting alert to {len(active_connections)} clients: {alert_data}")
+    disconnected = []
+    sc = float(alert_data.get("risk_score", 0))
+    sc_pct = f"{round(sc * 100, 1)}%" if sc <= 1.0 else f"{round(sc, 1)}%"
+    
+    payload = {
+        "type": "alert",
+        "id": str(alert_data.get("id", "")),
+        "agent_id": str(alert_data.get("agent_id", "")),
+        "risk_score": sc,
+        "risk_score_pct": sc_pct,
+        "flag_reason": str(alert_data.get("flag_reason", "")),
+        "status": str(alert_data.get("status", "PENDING")),
+        "created_at": str(alert_data.get("created_at", ""))
+    }
+    
     for connection in active_connections[:]:
         try:
-            await connection.send_text(alert_str)
+            await connection.send_json(payload)
         except Exception as e:
             logger.error(f"Error sending message to WebSocket client: {str(e)}")
-            if connection in active_connections:
-                active_connections.remove(connection)
+            disconnected.append(connection)
+
+    for conn in disconnected:
+        if conn in active_connections:
+            active_connections.remove(conn)
 
 # REST API Endpoints for Fraud Alerts
 from fastapi import Depends, HTTPException, Query

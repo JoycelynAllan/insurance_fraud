@@ -98,6 +98,7 @@ async def run_fraud_check_job():
                     
                     # Broadcast via WebSocket
                     alert_payload = {
+                        "id": str(alert_obj.id),
                         "agent_id": str(tx.agent_id),
                         "risk_score": score_pct,
                         "flag_reason": flag_reason_str,
