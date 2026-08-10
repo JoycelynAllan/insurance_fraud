@@ -39,7 +39,7 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearB
       const token = localStorage.getItem("mifds_token");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await axios.get(`${apiBase}/api/agents/risk`, { headers });
-      
+
       // Sort descending by risk score
       const sorted = (Array.isArray(response.data) ? response.data : []).sort(
         (a, b) => (b.risk_score || 0) - (a.risk_score || 0)
@@ -113,7 +113,8 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearB
       !term ||
       (item.agent_id && item.agent_id.toLowerCase().includes(term)) ||
       (item.branch && item.branch.toLowerCase().includes(term));
-    const matchesBranch = !branchFilter || (item.branch && item.branch.toLowerCase() === branchFilter.toLowerCase());
+    const matchesBranch =
+      !branchFilter || (item.branch && item.branch.toLowerCase() === branchFilter.toLowerCase());
     return matchesSearch && matchesBranch;
   });
 
@@ -195,22 +196,37 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearB
           </MDBox>
         ) : (
           <TableContainer sx={{ maxHeight: "360px", overflowY: "auto", overflowX: "auto" }}>
-            <Table stickyHeader size="small" sx={{ tableLayout: "fixed", width: "100%", minWidth: "750px" }}>
+            <Table
+              stickyHeader
+              size="small"
+              sx={{ tableLayout: "fixed", width: "100%", minWidth: "750px" }}
+            >
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ fontWeight: "bold", width: "16%" }}>Agent ID</TableCell>
                   <TableCell sx={{ fontWeight: "bold", width: "16%" }}>Branch</TableCell>
-                  <TableCell sx={{ fontWeight: "bold", width: "15%" }} align="center">Risk Score</TableCell>
-                  <TableCell sx={{ fontWeight: "bold", width: "14%" }} align="center">Status</TableCell>
-                  <TableCell sx={{ fontWeight: "bold", width: "15%" }} align="right">Amount</TableCell>
-                  <TableCell sx={{ fontWeight: "bold", width: "24%" }} align="center">Actions</TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "15%" }} align="center">
+                    Risk Score
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "14%" }} align="center">
+                    Status
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "15%" }} align="right">
+                    Amount
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "24%" }} align="center">
+                    Actions
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredData.map((row, idx) => {
                   const agentId = row.agent_id || `AGT-${idx + 1}`;
                   const isSelected = selectedAgentId === agentId;
-                  const numericScore = typeof row.risk_score === "number" ? row.risk_score : parseFloat(row.risk_score) || 0.0;
+                  const numericScore =
+                    typeof row.risk_score === "number"
+                      ? row.risk_score
+                      : parseFloat(row.risk_score) || 0.0;
                   const scorePct = numericScore <= 1.0 ? numericScore * 100 : numericScore;
                   const isDisabled = scorePct < 40.0;
 
@@ -222,7 +238,9 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearB
                       selected={isSelected}
                       sx={{
                         cursor: "pointer",
-                        backgroundColor: isSelected ? "rgba(0, 180, 216, 0.15) !important" : "inherit",
+                        backgroundColor: isSelected
+                          ? "rgba(0, 180, 216, 0.15) !important"
+                          : "inherit",
                       }}
                     >
                       <TableCell align="left">

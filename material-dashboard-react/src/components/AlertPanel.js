@@ -196,7 +196,10 @@ function AlertPanel() {
             </MDBox>
           ) : (
             alerts.map((alert, index) => {
-              const numericScore = typeof alert.risk_score === "number" ? alert.risk_score : parseFloat(alert.risk_score) || 0;
+              const numericScore =
+                typeof alert.risk_score === "number"
+                  ? alert.risk_score
+                  : parseFloat(alert.risk_score) || 0;
               const scorePct = numericScore <= 1.0 ? numericScore * 100 : numericScore;
               const isHighRisk = scorePct >= 70.0;
               const isPending = (alert.status || "PENDING").toUpperCase() === "PENDING";
@@ -209,12 +212,19 @@ function AlertPanel() {
                     sx={{
                       border: "1px solid",
                       borderColor: isHighRisk ? "error.main" : "warning.main",
-                      backgroundColor: isHighRisk ? "rgba(244, 67, 54, 0.04)" : "rgba(255, 152, 0, 0.04)",
+                      backgroundColor: isHighRisk
+                        ? "rgba(244, 67, 54, 0.04)"
+                        : "rgba(255, 152, 0, 0.04)",
                     }}
                   >
                     <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                       <MDBox display="flex" alignItems="center">
-                        <MDTypography variant="button" fontWeight="bold" color="dark" sx={{ mr: 1 }}>
+                        <MDTypography
+                          variant="button"
+                          fontWeight="bold"
+                          color="dark"
+                          sx={{ mr: 1 }}
+                        >
                           {alert.agent_id}
                         </MDTypography>
                         <MDBadge

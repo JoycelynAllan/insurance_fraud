@@ -42,7 +42,10 @@ function BranchHeatmap({ onSelectBranch }) {
       const branchGroups = {};
       (Array.isArray(response.data) ? response.data : []).forEach((agent) => {
         const branch = agent.branch || "Accra";
-        const score = typeof agent.risk_score === "number" ? agent.risk_score : parseFloat(agent.risk_score) || 0;
+        const score =
+          typeof agent.risk_score === "number"
+            ? agent.risk_score
+            : parseFloat(agent.risk_score) || 0;
         const scorePct = score <= 1.0 ? score * 100 : score;
         const isFlagged = scorePct >= 70.0 || agent.is_fraud;
 
@@ -132,13 +135,27 @@ function BranchHeatmap({ onSelectBranch }) {
         </MDTypography>
       </MDBox>
 
-      <MDBox pt={3} px={2} pb={2} flexGrow={1} display="flex" flexDirection="column" justifyContent="center">
+      <MDBox
+        pt={3}
+        px={2}
+        pb={2}
+        flexGrow={1}
+        display="flex"
+        flexDirection="column"
+        justifyContent="center"
+      >
         {loading ? (
           <MDBox display="flex" justifyContent="center" alignItems="center" height="240px">
             <CircularProgress color="warning" />
           </MDBox>
         ) : error ? (
-          <MDBox display="flex" flexDirection="column" justifyContent="center" alignItems="center" height="240px">
+          <MDBox
+            display="flex"
+            flexDirection="column"
+            justifyContent="center"
+            alignItems="center"
+            height="240px"
+          >
             <MDTypography variant="body2" color="text" mb={2}>
               {error}
             </MDTypography>
@@ -151,7 +168,13 @@ function BranchHeatmap({ onSelectBranch }) {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
-                <XAxis dataKey="branch" stroke="#7b809a" fontSize={12} tickLine={false} axisLine={false} />
+                <XAxis
+                  dataKey="branch"
+                  stroke="#7b809a"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
                 <YAxis stroke="#7b809a" fontSize={12} tickLine={false} axisLine={false} unit="%" />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar

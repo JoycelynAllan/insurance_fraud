@@ -52,7 +52,9 @@ function AgentProfile() {
         setProfile(meRes.data);
 
         // Fetch agent transactions
-        const txRes = await axios.get(`${apiBase}/api/agents/${userAgentId}/transactions`, { headers });
+        const txRes = await axios.get(`${apiBase}/api/agents/${userAgentId}/transactions`, {
+          headers,
+        });
         const txList = Array.isArray(txRes.data) ? txRes.data : [];
         setTransactions(txList);
 
@@ -93,7 +95,14 @@ function AgentProfile() {
       case "flagged":
         return <MDBadge badgeContent="Missed" color="error" variant="gradient" size="xs" />;
       default:
-        return <MDBadge badgeContent={statusStr || "Normal"} color="secondary" variant="gradient" size="xs" />;
+        return (
+          <MDBadge
+            badgeContent={statusStr || "Normal"}
+            color="secondary"
+            variant="gradient"
+            size="xs"
+          />
+        );
     }
   };
 
@@ -105,7 +114,6 @@ function AgentProfile() {
       <MDBox py={3}>
         <MDBox mb={3}>
           <Grid container spacing={3}>
-
             {/* Welcome & Overview Banner Card */}
             <Grid item xs={12} md={8}>
               <Card sx={{ height: "100%", p: 3 }}>
@@ -118,12 +126,14 @@ function AgentProfile() {
                       Welcome, {profile?.full_name || currentUserName}
                     </MDTypography>
                     <MDTypography variant="button" color="text">
-                      Branch: <strong>{profile?.branch || currentUserBranch}</strong> | Role: <strong>Field Agent</strong> | ID: <strong>{userAgentId}</strong>
+                      Branch: <strong>{profile?.branch || currentUserBranch}</strong> | Role:{" "}
+                      <strong>Field Agent</strong> | ID: <strong>{userAgentId}</strong>
                     </MDTypography>
                   </MDBox>
                 </MDBox>
                 <MDTypography variant="body2" color="text" sx={{ mt: 1 }}>
-                  Customer Call Language: <strong>{(profile?.language_pref || "english").toUpperCase()}</strong>
+                  Customer Call Language:{" "}
+                  <strong>{(profile?.language_pref || "english").toUpperCase()}</strong>
                 </MDTypography>
               </Card>
             </Grid>
@@ -202,7 +212,10 @@ function AgentProfile() {
                             <TableRow key={tx.id} hover>
                               <TableCell>{tx.date || tx.timestamp}</TableCell>
                               <TableCell>{tx.customer_phone || "-"}</TableCell>
-                              <TableCell>GHS {typeof tx.amount === "number" ? tx.amount.toFixed(2) : tx.amount}</TableCell>
+                              <TableCell>
+                                GHS{" "}
+                                {typeof tx.amount === "number" ? tx.amount.toFixed(2) : tx.amount}
+                              </TableCell>
                               <TableCell>{tx.payment_method || "Cash"}</TableCell>
                               <TableCell>{getStatusBadge(tx.remittance_status)}</TableCell>
                             </TableRow>
@@ -213,15 +226,23 @@ function AgentProfile() {
                   )}
 
                   {/* Informational Disclaimer Message */}
-                  <MDBox mt={3} p={2} borderRadius="md" sx={{ backgroundColor: "rgba(2, 136, 209, 0.08)", border: "1px dashed #0288d1" }}>
+                  <MDBox
+                    mt={3}
+                    p={2}
+                    borderRadius="md"
+                    sx={{
+                      backgroundColor: "rgba(2, 136, 209, 0.08)",
+                      border: "1px dashed #0288d1",
+                    }}
+                  >
                     <MDTypography variant="caption" color="info" fontWeight="medium">
-                      ℹ️ If you believe your risk score is incorrect, please contact your branch supervisor.
+                      ℹ️ If you believe your risk score is incorrect, please contact your branch
+                      supervisor.
                     </MDTypography>
                   </MDBox>
                 </MDBox>
               </Card>
             </Grid>
-
           </Grid>
         </MDBox>
       </MDBox>

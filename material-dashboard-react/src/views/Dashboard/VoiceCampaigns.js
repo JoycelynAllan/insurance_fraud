@@ -123,9 +123,13 @@ function VoiceCampaigns() {
       case "transfer_to_support_requested":
         return <MDBadge badgeContent="Support Req" color="warning" variant="gradient" size="xs" />;
       case "max_retries_reached":
-        return <MDBadge badgeContent="Max Retries" color="secondary" variant="gradient" size="xs" />;
+        return (
+          <MDBadge badgeContent="Max Retries" color="secondary" variant="gradient" size="xs" />
+        );
       default:
-        return <MDBadge badgeContent={outcome || "Queued"} color="info" variant="gradient" size="xs" />;
+        return (
+          <MDBadge badgeContent={outcome || "Queued"} color="info" variant="gradient" size="xs" />
+        );
     }
   };
 
@@ -141,7 +145,9 @@ function VoiceCampaigns() {
 
   // Metrics summary row calculations
   const totalCalls = logs.length;
-  const confirmedPayments = logs.filter((l) => l.outcome === "payment_confirmed_by_customer").length;
+  const confirmedPayments = logs.filter(
+    (l) => l.outcome === "payment_confirmed_by_customer"
+  ).length;
   const failedCalls = logs.filter((l) => l.outcome === "failed").length;
   const pendingRetries = logs.filter((l) => l.outcome === "sent" || l.outcome === "queued").length;
 
@@ -149,7 +155,6 @@ function VoiceCampaigns() {
     <DashboardLayout>
       <DashboardNavbar title="Voice Campaigns" showGhanaTime />
       <MDBox py={3}>
-        
         {/* Summary Metrics Cards Row */}
         <MDBox mb={3}>
           <Grid container spacing={3}>
@@ -282,12 +287,19 @@ function VoiceCampaigns() {
                               </TableCell>
                               <TableCell>{log.agent_id}</TableCell>
                               <TableCell>
-                                GHS {typeof log.amount === "number" ? log.amount.toFixed(2) : log.amount}
+                                GHS{" "}
+                                {typeof log.amount === "number"
+                                  ? log.amount.toFixed(2)
+                                  : log.amount}
                               </TableCell>
-                              <TableCell>{(log.language_pref || "english").toUpperCase()}</TableCell>
+                              <TableCell>
+                                {(log.language_pref || "english").toUpperCase()}
+                              </TableCell>
                               <TableCell>{log.attempt_number || 1}</TableCell>
                               <TableCell>{getOutcomeBadge(log.outcome)}</TableCell>
-                              <TableCell>{formatTimestamp(log.called_at || log.timestamp)}</TableCell>
+                              <TableCell>
+                                {formatTimestamp(log.called_at || log.timestamp)}
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -307,7 +319,13 @@ function VoiceCampaigns() {
         <form onSubmit={handleTriggerSubmit}>
           <DialogContent>
             {triggerSuccess && (
-              <MDTypography variant="caption" color="success" fontWeight="bold" display="block" mb={2}>
+              <MDTypography
+                variant="caption"
+                color="success"
+                fontWeight="bold"
+                display="block"
+                mb={2}
+              >
                 {triggerSuccess}
               </MDTypography>
             )}
