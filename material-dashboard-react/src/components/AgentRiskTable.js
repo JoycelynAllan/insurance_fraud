@@ -5,17 +5,10 @@ import toast from "react-hot-toast";
 
 // @mui material components
 import Card from "@mui/material/Card";
-import TableContainer from "@mui/material/TableContainer";
-import Table from "@mui/material/Table";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import TableCell from "@mui/material/TableCell";
-import TableBody from "@mui/material/TableBody";
 import CircularProgress from "@mui/material/CircularProgress";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import Icon from "@mui/material/Icon";
-import Tooltip from "@mui/material/Tooltip";
 
 // Material Dashboard 2 React components
 import MDBox from "components/MDBox";
@@ -24,6 +17,35 @@ import MDBadge from "components/MDBadge";
 import MDButton from "components/MDButton";
 
 import { getApiBase } from "utils/apiConfig";
+
+const thStyle = {
+  padding: "12px 8px",
+  textAlign: "left",
+  fontWeight: "bold",
+  fontSize: "13px",
+  color: "#344767",
+  borderBottom: "2px solid #dee2e6",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const tdStyle = {
+  padding: "12px 8px",
+  textAlign: "left",
+  fontSize: "13px",
+  color: "#495057",
+  borderBottom: "1px solid #f0f0f0",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  verticalAlign: "middle",
+};
+
+const trStyle = {
+  cursor: "pointer",
+  transition: "background-color 0.15s",
+};
 
 function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearBranchFilter }) {
   const [data, setData] = useState([]);
@@ -91,14 +113,6 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearB
     return "error";
   };
 
-  const getStatusTextColor = (statusStr) => {
-    const s = (statusStr || "").toLowerCase();
-    if (s === "missed") return "error";
-    if (s === "pending") return "warning";
-    if (s === "remitted") return "success";
-    return "text";
-  };
-
   // Filter agents based on search term and branchFilter
   const filteredData = data.filter((item) => {
     const term = search.toLowerCase();
@@ -111,18 +125,8 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearB
     return matchesSearch && matchesBranch;
   });
 
-  // Common cell style for truncation and fixed width enforcement
-  const commonCellStyle = {
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    textAlign: "center",
-    verticalAlign: "middle",
-    px: 1,
-  };
-
   return (
-    <Card sx={{ height: "100%", minHeight: "380px" }}>
+    <Card sx={{ height: "100%", minHeight: "380px", overflow: "hidden", width: "100%" }}>
       <MDBox
         display="flex"
         justifyContent="space-between"
@@ -190,150 +194,104 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearB
             </MDButton>
           </MDBox>
         ) : (
-          <TableContainer sx={{ maxHeight: "360px", overflowY: "auto", overflowX: "hidden" }}>
-            <Table stickyHeader size="small" sx={{ tableLayout: "fixed", width: "100%" }}>
-              <TableHead>
-                <TableRow sx={{ height: "48px" }}>
-                  <TableCell sx={{ ...commonCellStyle, width: "120px", fontWeight: "bold" }}>
-                    Agent ID
-                  </TableCell>
-                  <TableCell sx={{ ...commonCellStyle, width: "120px", fontWeight: "bold" }}>
-                    Branch
-                  </TableCell>
-                  <TableCell sx={{ ...commonCellStyle, width: "100px", fontWeight: "bold" }}>
-                    Risk Score
-                  </TableCell>
-                  <TableCell sx={{ ...commonCellStyle, width: "100px", fontWeight: "bold" }}>
-                    Status
-                  </TableCell>
-                  <TableCell sx={{ ...commonCellStyle, width: "130px", fontWeight: "bold" }}>
-                    Amount
-                  </TableCell>
-                  <TableCell sx={{ ...commonCellStyle, width: "150px", fontWeight: "bold" }}>
-                    Actions
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredData.map((row, idx) => {
-                  const agentId = row.agent_id || `AGT-${idx + 1}`;
+          <MDBox sx={{ width: "100%", overflowX: "hidden", maxHeight: "360px", overflowY: "auto" }}>
+            <table
+              style={{
+                width: "100%",
+                tableLayout: "fixed",
+                borderCollapse: "collapse",
+                fontSize: "13px",
+              }}
+            >
+              <colgroup>
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "19%" }} />
+                <col style={{ width: "20%" }} />
+              </colgroup>
+              <thead>
+                <tr style={{ backgroundColor: "#f8f9fa" }}>
+                  <th style={thStyle}>Agent ID</th>
+                  <th style={thStyle}>Branch</th>
+                  <th style={thStyle}>Risk Score</th>
+                  <th style={thStyle}>Status</th>
+                  <th style={thStyle}>Amount</th>
+                  <th style={thStyle}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredData.map((agent) => {
+                  const agentId = agent.agent_id;
                   const isSelected = selectedAgentId === agentId;
                   const numericScore =
-                    typeof row.risk_score === "number"
-                      ? row.risk_score
-                      : parseFloat(row.risk_score) || 0.0;
+                    typeof agent.risk_score === "number"
+                      ? agent.risk_score
+                      : parseFloat(agent.risk_score) || 0.0;
                   const scorePct = numericScore <= 1.0 ? numericScore * 100 : numericScore;
                   const isBelowThreshold = scorePct < 40.0;
 
                   return (
-                    <TableRow
+                    <tr
                       key={agentId}
-                      hover
-                      onClick={() => onSelectAgent(agentId)}
-                      selected={isSelected}
-                      sx={{
-                        height: "56px",
-                        verticalAlign: "middle",
-                        cursor: "pointer",
-                        backgroundColor: isSelected
-                          ? "rgba(0, 180, 216, 0.15) !important"
-                          : "inherit",
+                      style={{
+                        ...trStyle,
+                        backgroundColor: isSelected ? "rgba(0, 180, 216, 0.15)" : "transparent",
                       }}
+                      onClick={() => onSelectAgent(agentId)}
                     >
-                      <TableCell sx={{ ...commonCellStyle, width: "120px" }}>
-                        <MDTypography variant="button" fontWeight="medium">
-                          {agentId}
-                        </MDTypography>
-                      </TableCell>
-                      <TableCell sx={{ ...commonCellStyle, width: "120px" }}>
-                        <MDTypography variant="caption" color="text" fontWeight="medium">
-                          {row.branch || "Accra"}
-                        </MDTypography>
-                      </TableCell>
-                      <TableCell sx={{ ...commonCellStyle, width: "100px" }}>
-                        <MDBox display="flex" justifyContent="center" alignItems="center">
-                          <MDBadge
-                            badgeContent={`${scorePct.toFixed(1)}%`}
-                            color={getRiskColor(scorePct)}
-                            variant="gradient"
-                            size="xs"
-                          />
-                        </MDBox>
-                      </TableCell>
-                      <TableCell sx={{ ...commonCellStyle, width: "100px" }}>
-                        <MDTypography
-                          variant="caption"
-                          color={getStatusTextColor(row.status)}
-                          fontWeight="bold"
-                          sx={{ textTransform: "capitalize" }}
+                      <td style={tdStyle}>
+                        <strong>{agentId}</strong>
+                      </td>
+                      <td style={tdStyle}>{agent.branch || "Accra"}</td>
+                      <td style={{ ...tdStyle, textAlign: "center" }}>
+                        <MDBadge
+                          badgeContent={`${scorePct.toFixed(1)}%`}
+                          color={getRiskColor(scorePct)}
+                          variant="gradient"
+                          size="xs"
+                        />
+                      </td>
+                      <td style={{ ...tdStyle, textTransform: "capitalize" }}>
+                        {agent.status || "pending"}
+                      </td>
+                      <td style={tdStyle}>GHS {(agent.amount || 0).toFixed(2)}</td>
+                      <td style={{ ...tdStyle, textAlign: "center" }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCallCustomer(agent);
+                          }}
+                          disabled={isBelowThreshold}
+                          title={
+                            isBelowThreshold
+                              ? "Risk score below threshold"
+                              : "Call this agent's customer"
+                          }
+                          style={{
+                            backgroundColor: isBelowThreshold ? "#9e9e9e" : "#212121",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "6px",
+                            padding: "6px 10px",
+                            fontSize: "11px",
+                            fontWeight: "bold",
+                            cursor: isBelowThreshold ? "not-allowed" : "pointer",
+                            whiteSpace: "nowrap",
+                            width: "100%",
+                            maxWidth: "120px",
+                          }}
                         >
-                          {row.status || "pending"}
-                        </MDTypography>
-                      </TableCell>
-                      <TableCell sx={{ ...commonCellStyle, width: "130px" }}>
-                        <MDTypography variant="caption" color="text" fontWeight="medium">
-                          GHS {(row.amount || 0).toFixed(2)}
-                        </MDTypography>
-                      </TableCell>
-                      <TableCell
-                        sx={{ ...commonCellStyle, width: "150px" }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MDBox display="flex" justifyContent="center" alignItems="center">
-                          {isBelowThreshold ? (
-                            <Tooltip title="Risk score below threshold — no action needed" arrow>
-                              <span
-                                style={{
-                                  width: "100%",
-                                  maxWidth: "130px",
-                                  display: "inline-block",
-                                }}
-                              >
-                                <MDButton
-                                  variant="gradient"
-                                  color="secondary"
-                                  size="small"
-                                  disabled
-                                  fullWidth
-                                  sx={{
-                                    py: "6px",
-                                    px: "8px",
-                                    fontSize: "11px",
-                                    whiteSpace: "nowrap",
-                                    lineHeight: 1.2,
-                                  }}
-                                >
-                                  CALL CUSTOMER
-                                </MDButton>
-                              </span>
-                            </Tooltip>
-                          ) : (
-                            <MDButton
-                              variant="gradient"
-                              color="dark"
-                              size="small"
-                              fullWidth
-                              onClick={() => handleCallCustomer(row)}
-                              sx={{
-                                py: "6px",
-                                px: "8px",
-                                fontSize: "11px",
-                                whiteSpace: "nowrap",
-                                lineHeight: 1.2,
-                                maxWidth: "130px",
-                              }}
-                            >
-                              CALL CUSTOMER
-                            </MDButton>
-                          )}
-                        </MDBox>
-                      </TableCell>
-                    </TableRow>
+                          CALL CUSTOMER
+                        </button>
+                      </td>
+                    </tr>
                   );
                 })}
-              </TableBody>
-            </Table>
-          </TableContainer>
+              </tbody>
+            </table>
+          </MDBox>
         )}
       </MDBox>
     </Card>
