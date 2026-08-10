@@ -1,6 +1,7 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 import PropTypes from "prop-types";
+import { getCurrentUser } from "./auth";
 
 /**
  * Role-Based Route Guard Wrapper Component.
@@ -9,11 +10,13 @@ import PropTypes from "prop-types";
  */
 function PrivateRoute({ children, allowedRoles }) {
   const token = localStorage.getItem("mifds_token");
-  const userRole = localStorage.getItem("mifds_user_role") || "supervisor";
+  const user = getCurrentUser();
 
-  if (!token) {
+  if (!token || !user) {
     return <Navigate to="/login" replace />;
   }
+
+  const userRole = user.role || localStorage.getItem("mifds_user_role") || "supervisor";
 
   if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
     if (userRole === "agent") {

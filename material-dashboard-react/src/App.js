@@ -38,7 +38,11 @@ axios.interceptors.response.use(
       localStorage.removeItem("mifds_token");
       localStorage.removeItem("mifds_user_name");
       localStorage.removeItem("mifds_user_role");
-      window.location.href = "/login";
+      localStorage.removeItem("mifds_user_branch");
+      localStorage.removeItem("mifds_user_agent_id");
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }
@@ -78,6 +82,15 @@ import { useMaterialUIController, setMiniSidenav, setOpenConfigurator } from "co
 // Images
 import brandWhite from "assets/images/logo-ct.png";
 import brandDark from "assets/images/logo-ct-dark.png";
+
+import { getCurrentUser } from "utils/auth";
+
+function RootRedirect() {
+  const user = getCurrentUser();
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role === "agent") return <Navigate to="/agent-profile" replace />;
+  return <Navigate to="/fraud" replace />;
+}
 
 export default function App() {
   const [controller, dispatch] = useMaterialUIController();
@@ -193,7 +206,8 @@ export default function App() {
         {layout === "vr" && <Configurator />}
         <Routes>
           {getRoutes(routes)}
-          <Route path="*" element={<Navigate to="/login" />} />
+          <Route path="/" element={<RootRedirect />} />
+          <Route path="*" element={<RootRedirect />} />
         </Routes>
       </ThemeProvider>
     </CacheProvider>
@@ -217,7 +231,8 @@ export default function App() {
       {layout === "vr" && <Configurator />}
       <Routes>
         {getRoutes(routes)}
-        <Route path="*" element={<Navigate to="/login" />} />
+        <Route path="/" element={<RootRedirect />} />
+        <Route path="*" element={<RootRedirect />} />
       </Routes>
     </ThemeProvider>
   );

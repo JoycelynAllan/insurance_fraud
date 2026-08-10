@@ -17,6 +17,7 @@ import BasicLayout from "layouts/authentication/components/BasicLayout";
 import bgImage from "assets/images/bg-sign-in-basic.jpeg";
 
 import { getApiBase } from "utils/apiConfig";
+import { getCurrentUser } from "utils/auth";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -30,14 +31,13 @@ function Login() {
   const location = useLocation();
 
   useEffect(() => {
-    // If user is already authenticated, redirect immediately based on role
-    const token = localStorage.getItem("mifds_token");
-    const role = localStorage.getItem("mifds_user_role");
-    if (token) {
-      if (role === "agent") {
-        navigate("/agent-profile");
+    // If user is already authenticated with a valid unexpired token, redirect
+    const user = getCurrentUser();
+    if (user) {
+      if (user.role === "agent") {
+        navigate("/agent-profile", { replace: true });
       } else {
-        navigate("/fraud");
+        navigate("/fraud", { replace: true });
       }
     }
 

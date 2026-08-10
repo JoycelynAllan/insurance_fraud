@@ -20,6 +20,7 @@ import BasicLayout from "layouts/authentication/components/BasicLayout";
 // Images
 import bgImage from "assets/images/bg-sign-up-cover.jpeg";
 import { getApiBase } from "utils/apiConfig";
+import { getCurrentUser } from "utils/auth";
 
 function Register() {
   const [fullName, setFullName] = useState("");
@@ -35,14 +36,13 @@ function Register() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If user is already authenticated, redirect immediately based on role
-    const token = localStorage.getItem("mifds_token");
-    const userRole = localStorage.getItem("mifds_user_role");
-    if (token) {
-      if (userRole === "agent") {
-        navigate("/agent-profile");
+    // If user is already authenticated with valid unexpired token, redirect
+    const user = getCurrentUser();
+    if (user) {
+      if (user.role === "agent") {
+        navigate("/agent-profile", { replace: true });
       } else {
-        navigate("/fraud");
+        navigate("/fraud", { replace: true });
       }
     }
   }, [navigate]);
