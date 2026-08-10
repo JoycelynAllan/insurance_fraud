@@ -16,6 +16,10 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
 import Icon from "@mui/material/Icon";
 
 // Material Dashboard 2 React components
@@ -37,37 +41,22 @@ function VoiceCampaigns() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Filters and Pagination state
-  const [agentFilter, setAgentFilter] = useState("");
-  const [outcomeFilter, setOutcomeFilter] = useState("all");
-  const [page, setPage] = useState(0);
-  const limit = 10;
+  // Manual Trigger Modal State
+  const [modalOpen, setModalOpen] = useState(false);
+  const [manualPhone, setManualPhone] = useState("");
+  const [manualAgent, setManualAgent] = useState("AGT041");
+  const [manualAmount, setManualAmount] = useState("150.0");
+  const [manualLanguage, setManualLanguage] = useState("english");
+  const [triggerLoading, setTriggerLoading] = useState(false);
+  const [triggerSuccess, setTriggerSuccess] = useState("");
 
   const fetchLogs = async () => {
-    setLoading(true);
-    setError(null);
     try {
       const apiBase = getApiBase();
       const token = localStorage.getItem("mifds_token");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-      const params = {
-        limit,
-        offset: page * limit,
-      };
-
-      if (agentFilter.trim()) {
-        params.agent_id = agentFilter.trim();
-      }
-      if (outcomeFilter && outcomeFilter !== "all") {
-        params.outcome = outcomeFilter;
-      }
-
-      const response = await axios.get(`${apiBase}/api/voice/logs`, {
-        headers,
-        params,
-      });
-
+      const response = await axios.get(`${apiBase}/api/voice/logs`, { headers });
       const rawLogs = Array.isArray(response.data) ? response.data : response.data.logs || [];
       const totalCount = Array.isArray(response.data)
         ? response.data.length
@@ -76,11 +65,7 @@ function VoiceCampaigns() {
       setTotal(totalCount);
     } catch (err) {
       console.error("Error fetching voice campaign logs:", err);
-      if (err.response && err.response.data && err.response.data.detail) {
-        setError(`Error: ${err.response.data.detail}`);
-      } else {
-        setError("Failed to connect to the Voice Campaigns backend service.");
-      }
+      setError("Failed to connect to the Voice Campaigns backend service.");
     } finally {
       setLoading(false);
     }
@@ -88,34 +73,59 @@ function VoiceCampaigns() {
 
   useEffect(() => {
     fetchLogs();
-  }, [page, outcomeFilter]);
+    // Auto refresh every 30 seconds
+    const interval = setInterval(fetchLogs, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const handleSearchSubmit = (e) => {
+  const handleTriggerSubmit = async (e) => {
     e.preventDefault();
-    setPage(0);
-    fetchLogs();
+    setTriggerLoading(true);
+    setTriggerSuccess("");
+
+    try {
+      const apiBase = getApiBase();
+      const token = localStorage.getItem("mifds_token");
+      await axios.post(
+        `${apiBase}/api/voice/trigger`,
+        {
+          customer_phone: manualPhone,
+          agent_id: manualAgent,
+          amount: parseFloat(manualAmount) || 150.0,
+          language: manualLanguage,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setTriggerSuccess("Manual call scheduled successfully!");
+      fetchLogs();
+      setTimeout(() => {
+        setModalOpen(false);
+        setTriggerSuccess("");
+        setManualPhone("");
+      }, 1500);
+    } catch (err) {
+      console.error("Failed to trigger manual voice reminder call:", err);
+    } finally {
+      setTriggerLoading(false);
+    }
   };
 
   const getOutcomeBadge = (outcome) => {
-    switch (outcome ? outcome.toLowerCase() : "") {
-      case "answered":
-      case "completed":
-        return <MDBadge badgeContent="Answered" color="success" variant="gradient" size="xs" />;
-      case "no_answer":
-      case "busy":
-      case "timeout":
-        return <MDBadge badgeContent="No Answer" color="warning" variant="gradient" size="xs" />;
+    const val = (outcome || "").toLowerCase();
+    switch (val) {
+      case "sent":
+        return <MDBadge badgeContent="Sent" color="success" variant="gradient" size="xs" />;
       case "failed":
         return <MDBadge badgeContent="Failed" color="error" variant="gradient" size="xs" />;
+      case "payment_confirmed_by_customer":
+        return <MDBadge badgeContent="Confirmed" color="info" variant="gradient" size="xs" />;
+      case "transfer_to_support_requested":
+        return <MDBadge badgeContent="Support Req" color="warning" variant="gradient" size="xs" />;
+      case "max_retries_reached":
+        return <MDBadge badgeContent="Max Retries" color="secondary" variant="gradient" size="xs" />;
       default:
-        return (
-          <MDBadge
-            badgeContent={outcome || "Unknown"}
-            color="secondary"
-            variant="gradient"
-            size="xs"
-          />
-        );
+        return <MDBadge badgeContent={outcome || "Queued"} color="info" variant="gradient" size="xs" />;
     }
   };
 
@@ -129,17 +139,68 @@ function VoiceCampaigns() {
     }
   };
 
-  const totalPages = Math.ceil(total / limit) || 1;
+  // Metrics summary row calculations
+  const totalCalls = logs.length;
+  const confirmedPayments = logs.filter((l) => l.outcome === "payment_confirmed_by_customer").length;
+  const failedCalls = logs.filter((l) => l.outcome === "failed").length;
+  const pendingRetries = logs.filter((l) => l.outcome === "sent" || l.outcome === "queued").length;
 
   return (
     <DashboardLayout>
       <DashboardNavbar title="Voice Campaigns" showGhanaTime />
       <MDBox py={3}>
+        
+        {/* Summary Metrics Cards Row */}
+        <MDBox mb={3}>
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{ p: 2, textAlign: "center" }}>
+                <MDTypography variant="button" color="text" fontWeight="medium">
+                  Total Calls Made
+                </MDTypography>
+                <MDTypography variant="h3" fontWeight="bold" color="dark" mt={1}>
+                  {totalCalls}
+                </MDTypography>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{ p: 2, textAlign: "center" }}>
+                <MDTypography variant="button" color="text" fontWeight="medium">
+                  Confirmed Payments
+                </MDTypography>
+                <MDTypography variant="h3" fontWeight="bold" color="info" mt={1}>
+                  {confirmedPayments}
+                </MDTypography>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{ p: 2, textAlign: "center" }}>
+                <MDTypography variant="button" color="text" fontWeight="medium">
+                  Failed Calls
+                </MDTypography>
+                <MDTypography variant="h3" fontWeight="bold" color="error" mt={1}>
+                  {failedCalls}
+                </MDTypography>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{ p: 2, textAlign: "center" }}>
+                <MDTypography variant="button" color="text" fontWeight="medium">
+                  Pending Retries
+                </MDTypography>
+                <MDTypography variant="h3" fontWeight="bold" color="warning" mt={1}>
+                  {pendingRetries}
+                </MDTypography>
+              </Card>
+            </Grid>
+          </Grid>
+        </MDBox>
+
+        {/* Main Table Card */}
         <MDBox mb={3}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Card>
-                {/* Header card banner */}
                 <MDBox
                   display="flex"
                   justifyContent="space-between"
@@ -155,76 +216,36 @@ function VoiceCampaigns() {
                 >
                   <MDBox>
                     <MDTypography variant="h6" color="white">
-                      Voice Campaigns Activity Logs
+                      Voice & SMS Telephony Campaign Logs
                     </MDTypography>
                     <MDTypography variant="caption" color="white" opacity={0.8}>
-                      Automated & Manual Outbound Telephony Payment Reminders (Dograh Integration)
+                      Automated & Manual Reminders (Auto-refreshes every 30s)
                     </MDTypography>
                   </MDBox>
-                  <MDButton variant="gradient" color="dark" size="small" onClick={fetchLogs}>
-                    <Icon sx={{ mr: 0.5 }}>refresh</Icon> Refresh
-                  </MDButton>
-                </MDBox>
-
-                {/* Filters Row */}
-                <MDBox
-                  pt={3}
-                  px={3}
-                  pb={1}
-                  display="flex"
-                  flexWrap="wrap"
-                  gap={2}
-                  alignItems="center"
-                >
-                  <form
-                    onSubmit={handleSearchSubmit}
-                    style={{ display: "flex", gap: "16px", alignItems: "center" }}
-                  >
-                    <TextField
+                  <MDBox display="flex" gap={1}>
+                    <MDButton
+                      variant="gradient"
+                      color="dark"
                       size="small"
-                      label="Filter by Agent ID"
-                      variant="outlined"
-                      value={agentFilter}
-                      onChange={(e) => setAgentFilter(e.target.value)}
-                      placeholder="e.g. AGT035"
-                      sx={{ width: "200px" }}
-                    />
-                    <MDButton type="submit" variant="outlined" color="info" size="small">
-                      Filter
-                    </MDButton>
-                  </form>
-
-                  <FormControl size="small" sx={{ minWidth: 180 }}>
-                    <InputLabel id="outcome-select-label">Outcome Filter</InputLabel>
-                    <Select
-                      labelId="outcome-select-label"
-                      value={outcomeFilter}
-                      label="Outcome Filter"
-                      onChange={(e) => {
-                        setOutcomeFilter(e.target.value);
-                        setPage(0);
-                      }}
+                      onClick={() => setModalOpen(true)}
                     >
-                      <MenuItem value="all">All Outcomes</MenuItem>
-                      <MenuItem value="answered">Answered</MenuItem>
-                      <MenuItem value="no_answer">No Answer</MenuItem>
-                      <MenuItem value="failed">Failed</MenuItem>
-                    </Select>
-                  </FormControl>
+                      <Icon sx={{ mr: 0.5 }}>phone_in_talk</Icon> Trigger Manual Call
+                    </MDButton>
+                    <MDButton variant="outlined" color="white" size="small" onClick={fetchLogs}>
+                      <Icon sx={{ mr: 0.5 }}>refresh</Icon> Refresh
+                    </MDButton>
+                  </MDBox>
                 </MDBox>
 
-                {/* Main Table Content */}
-                <MDBox pt={1} px={2} pb={3}>
+                {/* Table Content */}
+                <MDBox pt={3} px={2} pb={3}>
                   {loading ? (
-                    <MDBox display="flex" justifyContent="center" alignItems="center" py={8}>
+                    <MDBox display="flex" justifyContent="center" py={8}>
                       <CircularProgress color="info" />
                     </MDBox>
                   ) : error ? (
-                    <MDBox display="flex" flexDirection="column" alignItems="center" py={6}>
-                      <Icon color="error" sx={{ fontSize: "36px !important", mb: 1 }}>
-                        error_outline
-                      </Icon>
-                      <MDTypography variant="body2" color="text" mb={2}>
+                    <MDBox textAlign="center" py={6}>
+                      <MDTypography variant="body2" color="error" mb={2}>
                         {error}
                       </MDTypography>
                       <MDButton variant="gradient" color="info" size="small" onClick={fetchLogs}>
@@ -232,107 +253,46 @@ function VoiceCampaigns() {
                       </MDButton>
                     </MDBox>
                   ) : logs.length === 0 ? (
-                    <MDBox display="flex" flexDirection="column" alignItems="center" py={6}>
-                      <Icon sx={{ fontSize: "36px !important", color: "grey.400", mb: 1 }}>
-                        record_voice_over
-                      </Icon>
+                    <MDBox textAlign="center" py={6}>
                       <MDTypography variant="body2" color="text">
-                        No voice campaign call logs found.
+                        No voice campaign logs found.
                       </MDTypography>
                     </MDBox>
                   ) : (
-                    <>
-                      <TableContainer sx={{ overflowX: "auto" }}>
-                        <Table size="small">
-                          <TableHead sx={{ display: "table-header-group" }}>
-                            <TableRow>
-                              <TableCell sx={{ fontWeight: "bold" }}>Customer Phone</TableCell>
-                              <TableCell sx={{ fontWeight: "bold" }}>Agent</TableCell>
-                              <TableCell sx={{ fontWeight: "bold" }}>Amount</TableCell>
-                              <TableCell sx={{ fontWeight: "bold" }}>Timestamp</TableCell>
-                              <TableCell sx={{ fontWeight: "bold" }}>Attempts</TableCell>
-                              <TableCell sx={{ fontWeight: "bold" }}>Outcome</TableCell>
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead sx={{ display: "table-header-group" }}>
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: "bold" }}>Customer Phone</TableCell>
+                            <TableCell sx={{ fontWeight: "bold" }}>Agent ID</TableCell>
+                            <TableCell sx={{ fontWeight: "bold" }}>Amount (GHS)</TableCell>
+                            <TableCell sx={{ fontWeight: "bold" }}>Language</TableCell>
+                            <TableCell sx={{ fontWeight: "bold" }}>Attempt Number</TableCell>
+                            <TableCell sx={{ fontWeight: "bold" }}>Outcome</TableCell>
+                            <TableCell sx={{ fontWeight: "bold" }}>Timestamp</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {logs.map((log) => (
+                            <TableRow key={log.id} hover>
+                              <TableCell>
+                                <MDTypography variant="button" fontWeight="medium">
+                                  {log.customer_phone}
+                                </MDTypography>
+                              </TableCell>
+                              <TableCell>{log.agent_id}</TableCell>
+                              <TableCell>
+                                GHS {typeof log.amount === "number" ? log.amount.toFixed(2) : log.amount}
+                              </TableCell>
+                              <TableCell>{(log.language_pref || "english").toUpperCase()}</TableCell>
+                              <TableCell>{log.attempt_number || 1}</TableCell>
+                              <TableCell>{getOutcomeBadge(log.outcome)}</TableCell>
+                              <TableCell>{formatTimestamp(log.called_at || log.timestamp)}</TableCell>
                             </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {logs.map((log) => (
-                              <TableRow key={log.id} hover>
-                                <TableCell>
-                                  <MDTypography variant="button" fontWeight="medium">
-                                    {log.customer_phone}
-                                  </MDTypography>
-                                </TableCell>
-                                <TableCell>
-                                  <MDTypography variant="caption" color="text" fontWeight="medium">
-                                    {log.agent_id}
-                                  </MDTypography>
-                                </TableCell>
-                                <TableCell>
-                                  <MDTypography variant="caption" color="text" fontWeight="medium">
-                                    GHS{" "}
-                                    {typeof log.amount === "number"
-                                      ? log.amount.toFixed(2)
-                                      : log.amount}
-                                  </MDTypography>
-                                </TableCell>
-                                <TableCell>
-                                  <MDTypography variant="caption" color="text" fontWeight="medium">
-                                    {formatTimestamp(log.timestamp)}
-                                  </MDTypography>
-                                </TableCell>
-                                <TableCell>
-                                  <MDTypography variant="caption" color="text" fontWeight="medium">
-                                    {log.attempt_number || 1}
-                                  </MDTypography>
-                                </TableCell>
-                                <TableCell>{getOutcomeBadge(log.outcome)}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-
-                      {/* Pagination Controls */}
-                      <MDBox
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                        pt={3}
-                        px={2}
-                      >
-                        <MDTypography variant="caption" color="text">
-                          Showing {page * limit + 1} to {Math.min((page + 1) * limit, total)} of{" "}
-                          {total} call logs
-                        </MDTypography>
-                        <MDBox display="flex" gap={1}>
-                          <MDButton
-                            variant="outlined"
-                            color="info"
-                            size="small"
-                            disabled={page === 0}
-                            onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
-                          >
-                            Previous
-                          </MDButton>
-                          <MDTypography
-                            variant="caption"
-                            color="text"
-                            sx={{ display: "flex", alignItems: "center", px: 1 }}
-                          >
-                            Page {page + 1} of {totalPages}
-                          </MDTypography>
-                          <MDButton
-                            variant="outlined"
-                            color="info"
-                            size="small"
-                            disabled={page >= totalPages - 1}
-                            onClick={() => setPage((prev) => prev + 1)}
-                          >
-                            Next
-                          </MDButton>
-                        </MDBox>
-                      </MDBox>
-                    </>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
                   )}
                 </MDBox>
               </Card>
@@ -340,6 +300,74 @@ function VoiceCampaigns() {
           </Grid>
         </MDBox>
       </MDBox>
+
+      {/* Manual Trigger Modal Dialog */}
+      <Dialog open={modalOpen} onClose={() => setModalOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Trigger Manual Voice Call</DialogTitle>
+        <form onSubmit={handleTriggerSubmit}>
+          <DialogContent>
+            {triggerSuccess && (
+              <MDTypography variant="caption" color="success" fontWeight="bold" display="block" mb={2}>
+                {triggerSuccess}
+              </MDTypography>
+            )}
+            <MDBox mb={2}>
+              <TextField
+                fullWidth
+                label="Customer Phone Number"
+                value={manualPhone}
+                onChange={(e) => setManualPhone(e.target.value)}
+                placeholder="+233200000000"
+                required
+              />
+            </MDBox>
+            <MDBox mb={2}>
+              <TextField
+                fullWidth
+                label="Agent ID"
+                value={manualAgent}
+                onChange={(e) => setManualAgent(e.target.value)}
+                required
+              />
+            </MDBox>
+            <MDBox mb={2}>
+              <TextField
+                fullWidth
+                label="Amount (GHS)"
+                type="number"
+                value={manualAmount}
+                onChange={(e) => setManualAmount(e.target.value)}
+                required
+              />
+            </MDBox>
+            <MDBox mb={2}>
+              <FormControl fullWidth>
+                <InputLabel id="manual-lang-label">Customer Call Language</InputLabel>
+                <Select
+                  labelId="manual-lang-label"
+                  value={manualLanguage}
+                  label="Customer Call Language"
+                  onChange={(e) => setManualLanguage(e.target.value)}
+                  sx={{ height: "44px" }}
+                >
+                  <MenuItem value="english">English</MenuItem>
+                  <MenuItem value="twi">Twi</MenuItem>
+                  <MenuItem value="dagbani">Dagbani</MenuItem>
+                </Select>
+              </FormControl>
+            </MDBox>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <MDButton color="secondary" onClick={() => setModalOpen(false)}>
+              Cancel
+            </MDButton>
+            <MDButton type="submit" color="info" disabled={triggerLoading}>
+              {triggerLoading ? "Scheduling..." : "Schedule Call"}
+            </MDButton>
+          </DialogActions>
+        </form>
+      </Dialog>
+
       <Footer />
     </DashboardLayout>
   );

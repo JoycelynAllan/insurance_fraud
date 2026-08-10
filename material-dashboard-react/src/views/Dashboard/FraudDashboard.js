@@ -19,6 +19,7 @@ import PaymentTrendChart from "components/PaymentTrendChart";
 
 function FraudDashboard() {
   const [selectedAgentId, setSelectedAgentId] = useState("AGT001");
+  const [branchFilter, setBranchFilter] = useState("");
 
   return (
     <DashboardLayout>
@@ -31,6 +32,8 @@ function FraudDashboard() {
               <AgentRiskTable
                 selectedAgentId={selectedAgentId}
                 onSelectAgent={setSelectedAgentId}
+                branchFilter={branchFilter}
+                onClearBranchFilter={() => setBranchFilter("")}
               />
             </Grid>
             <Grid item xs={12} lg={4}>
@@ -43,7 +46,7 @@ function FraudDashboard() {
         <MDBox>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6} lg={6}>
-              <BranchHeatmap />
+              <BranchHeatmap onSelectBranch={(branch) => setBranchFilter(branch)} />
             </Grid>
             <Grid item xs={12} md={6} lg={6}>
               <PaymentTrendChart agentId={selectedAgentId} />

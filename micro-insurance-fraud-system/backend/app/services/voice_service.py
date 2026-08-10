@@ -44,7 +44,7 @@ def send_payment_reminder(customer_phone: str, agent_id: str, amount: float, lan
     elif lang == "dagbani":
         message = f"MicroInsure Ghana: A insurance puuni GHS {amount} bi ka. Sheri ni fo agent {agent_id} ka amoonin."
     else:
-        message = f"MicroInsure Ghana: Your insurance premium of GHS {amount} is outstanding. Please contact agent {agent_id}."
+        message = f"MicroInsure Ghana: Your insurance premium of GHS {amount} is outstanding. Please contact your agent {agent_id} to make arrangements."
 
     try:
         response = sms.send(message=message, recipients=[customer_phone])

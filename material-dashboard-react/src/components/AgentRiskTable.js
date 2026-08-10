@@ -24,19 +24,27 @@ import MDButton from "components/MDButton";
 
 import { getApiBase } from "utils/apiConfig";
 
-function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
+function AgentRiskTable({ selectedAgentId, onSelectAgent, branchFilter, onClearBranchFilter }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
       const apiBase = getApiBase();
-      const response = await axios.get(`${apiBase}/api/agents/risk`);
-      setData(response.data);
+      const token = localStorage.getItem("mifds_token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${apiBase}/api/agents/risk`, { headers });
+      
+      // Sort descending by risk score
+      const sorted = (Array.isArray(response.data) ? response.data : []).sort(
+        (a, b) => (b.risk_score || 0) - (a.risk_score || 0)
+      );
+      setData(sorted);
     } catch (err) {
       console.error("[API Error - AgentRiskTable]", err);
       setError("Failed to fetch risk data from API.");
@@ -53,18 +61,60 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
     setSearch(event.target.value);
   };
 
+  const handleInvestigate = async (agentId, alertId = 1) => {
+    try {
+      const apiBase = getApiBase();
+      const token = localStorage.getItem("mifds_token");
+      await axios.post(
+        `${apiBase}/api/alerts/${alertId}/acknowledge`,
+        { status: "INVESTIGATING" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setActionMessage(`Investigation opened for Agent ${agentId}`);
+      setTimeout(() => setActionMessage(""), 4000);
+      fetchData();
+    } catch (err) {
+      console.error("Failed to set status to INVESTIGATING:", err);
+    }
+  };
+
+  const handleCallCustomer = async (agentRow) => {
+    try {
+      const apiBase = getApiBase();
+      const token = localStorage.getItem("mifds_token");
+      await axios.post(
+        `${apiBase}/api/voice/trigger`,
+        {
+          customer_phone: agentRow.customer_phone || "+233200000000",
+          agent_id: agentRow.agent_id,
+          amount: agentRow.amount || 150.0,
+          language: agentRow.language_pref || "english",
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setActionMessage(`Outbound reminder call dispatched for Agent ${agentRow.agent_id}`);
+      setTimeout(() => setActionMessage(""), 4000);
+    } catch (err) {
+      console.error("Failed to trigger outbound voice reminder:", err);
+    }
+  };
+
   const getRiskColor = (score) => {
-    if (score < 40) return "success";
-    if (score < 70) return "warning";
+    const val = score <= 1.0 ? score * 100 : score;
+    if (val < 40) return "success";
+    if (val < 70) return "warning";
     return "error";
   };
 
-  // Filter agents based on agent_id or branch
+  // Filter agents based on search term and branchFilter
   const filteredData = data.filter((item) => {
     const term = search.toLowerCase();
-    const matchesAgent = item.agent_id ? item.agent_id.toLowerCase().includes(term) : false;
-    const matchesBranch = item.branch ? item.branch.toLowerCase().includes(term) : false;
-    return matchesAgent || matchesBranch;
+    const matchesSearch =
+      !term ||
+      (item.agent_id && item.agent_id.toLowerCase().includes(term)) ||
+      (item.branch && item.branch.toLowerCase().includes(term));
+    const matchesBranch = !branchFilter || (item.branch && item.branch.toLowerCase() === branchFilter.toLowerCase());
+    return matchesSearch && matchesBranch;
   });
 
   return (
@@ -82,9 +132,22 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
         borderRadius="lg"
         coloredShadow="info"
       >
-        <MDTypography variant="h6" color="white">
-          Agent Risk Profiles
-        </MDTypography>
+        <MDBox display="flex" alignItems="center" gap={1}>
+          <MDTypography variant="h6" color="white">
+            Agent Risk Profiles {branchFilter ? `(${branchFilter})` : ""}
+          </MDTypography>
+          {branchFilter && (
+            <MDButton
+              variant="outlined"
+              color="white"
+              size="small"
+              onClick={onClearBranchFilter}
+              sx={{ py: 0.2, px: 1, fontSize: "0.7rem" }}
+            >
+              Clear Filter
+            </MDButton>
+          )}
+        </MDBox>
         <TextField
           size="small"
           placeholder="Filter by ID or Branch..."
@@ -96,8 +159,6 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
             width: "220px",
             "& .MuiOutlinedInput-root": {
               "& fieldset": { borderColor: "transparent" },
-              "&:hover fieldset": { borderColor: "transparent" },
-              "&.Mui-focused fieldset": { borderColor: "transparent" },
             },
           }}
           InputProps={{
@@ -110,20 +171,21 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
         />
       </MDBox>
 
-      <MDBox pt={3} px={2} pb={2} flexGrow={1} display="flex" flexDirection="column">
+      {actionMessage && (
+        <MDBox px={2} pt={2} textAlign="center">
+          <MDTypography variant="caption" color="success" fontWeight="bold">
+            {actionMessage}
+          </MDTypography>
+        </MDBox>
+      )}
+
+      <MDBox pt={2} px={2} pb={2} flexGrow={1} display="flex" flexDirection="column">
         {loading ? (
           <MDBox display="flex" justifyContent="center" alignItems="center" flexGrow={1} py={8}>
             <CircularProgress color="info" />
           </MDBox>
         ) : error ? (
-          <MDBox
-            display="flex"
-            flexDirection="column"
-            justifyContent="center"
-            alignItems="center"
-            flexGrow={1}
-            py={6}
-          >
+          <MDBox display="flex" flexDirection="column" alignItems="center" py={6}>
             <MDTypography variant="body2" color="text" mb={2}>
               {error}
             </MDTypography>
@@ -133,73 +195,24 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
           </MDBox>
         ) : (
           <TableContainer sx={{ maxHeight: "360px", overflowY: "auto", overflowX: "auto" }}>
-            <Table
-              stickyHeader
-              size="small"
-              sx={{ tableLayout: "fixed", width: "100%", minWidth: "650px" }}
-            >
+            <Table stickyHeader size="small" sx={{ tableLayout: "fixed", width: "100%", minWidth: "750px" }}>
               <TableHead>
                 <TableRow>
-                  <TableCell
-                    sx={{ fontWeight: "bold", width: "20%", minWidth: "110px" }}
-                    align="left"
-                  >
-                    Agent ID
-                  </TableCell>
-                  <TableCell
-                    sx={{ fontWeight: "bold", width: "20%", minWidth: "110px" }}
-                    align="left"
-                  >
-                    Branch
-                  </TableCell>
-                  <TableCell
-                    sx={{ fontWeight: "bold", width: "18%", minWidth: "100px" }}
-                    align="center"
-                  >
-                    Risk Score
-                  </TableCell>
-                  <TableCell
-                    sx={{ fontWeight: "bold", width: "14%", minWidth: "90px" }}
-                    align="center"
-                  >
-                    Status
-                  </TableCell>
-                  <TableCell
-                    sx={{ fontWeight: "bold", width: "16%", minWidth: "100px" }}
-                    align="right"
-                  >
-                    Amount
-                  </TableCell>
-                  <TableCell
-                    sx={{ fontWeight: "bold", width: "12%", minWidth: "90px" }}
-                    align="center"
-                  >
-                    Date
-                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "16%" }}>Agent ID</TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "16%" }}>Branch</TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "15%" }} align="center">Risk Score</TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "14%" }} align="center">Status</TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "15%" }} align="right">Amount</TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: "24%" }} align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredData.map((row, idx) => {
-                  const agentId = row.agent_id || row.agentId || `AGT-${idx + 1}`;
+                  const agentId = row.agent_id || `AGT-${idx + 1}`;
                   const isSelected = selectedAgentId === agentId;
-
-                  const rawScore =
-                    row.risk_score !== undefined && row.risk_score !== null
-                      ? row.risk_score
-                      : row.riskScore;
-                  const numericScore =
-                    typeof rawScore === "number" ? rawScore : parseFloat(rawScore) || 0.0;
-                  const riskColor = getRiskColor(numericScore);
-
-                  const rawAmount =
-                    row.amount !== undefined && row.amount !== null ? row.amount : row.total_amount;
-                  const numericAmount =
-                    typeof rawAmount === "number" ? rawAmount : parseFloat(rawAmount) || 0.0;
-
-                  const statusText =
-                    row.status || row.remittance_status || (row.is_fraud ? "FLAGGED" : "CLEARED");
-                  const dateRaw = row.date || row.timestamp || row.created_at;
-                  const dateText = dateRaw ? String(dateRaw).split(" ")[0].split("T")[0] : "-";
+                  const numericScore = typeof row.risk_score === "number" ? row.risk_score : parseFloat(row.risk_score) || 0.0;
+                  const scorePct = numericScore <= 1.0 ? numericScore * 100 : numericScore;
+                  const isDisabled = scorePct < 40.0;
 
                   return (
                     <TableRow
@@ -209,59 +222,64 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
                       selected={isSelected}
                       sx={{
                         cursor: "pointer",
-                        backgroundColor: isSelected
-                          ? "rgba(0, 180, 216, 0.15) !important"
-                          : "inherit",
-                        "&:hover": {
-                          backgroundColor: "rgba(0, 0, 0, 0.04) !important",
-                        },
+                        backgroundColor: isSelected ? "rgba(0, 180, 216, 0.15) !important" : "inherit",
                       }}
                     >
-                      <TableCell align="left" sx={{ width: "20%", minWidth: "110px" }}>
+                      <TableCell align="left">
                         <MDTypography variant="button" fontWeight="medium">
                           {agentId}
                         </MDTypography>
                       </TableCell>
-                      <TableCell align="left" sx={{ width: "20%", minWidth: "110px" }}>
+                      <TableCell align="left">
                         <MDTypography variant="caption" color="text" fontWeight="medium">
-                          {row.branch || "General"}
+                          {row.branch || "Accra"}
                         </MDTypography>
                       </TableCell>
-                      <TableCell align="center" sx={{ width: "18%", minWidth: "100px" }}>
+                      <TableCell align="center">
                         <MDBadge
-                          badgeContent={`${numericScore.toFixed(1)}%`}
-                          color={riskColor}
+                          badgeContent={`${scorePct.toFixed(1)}%`}
+                          color={getRiskColor(scorePct)}
                           variant="gradient"
                           size="xs"
                         />
                       </TableCell>
-                      <TableCell align="center" sx={{ width: "14%", minWidth: "90px" }}>
+                      <TableCell align="center">
                         <MDTypography variant="caption" color="text" fontWeight="medium">
-                          {statusText}
+                          {row.status || "pending"}
                         </MDTypography>
                       </TableCell>
-                      <TableCell align="right" sx={{ width: "16%", minWidth: "100px" }}>
+                      <TableCell align="right">
                         <MDTypography variant="caption" color="text" fontWeight="medium">
-                          GHS {numericAmount.toFixed(2)}
+                          GHS {(row.amount || 0).toFixed(2)}
                         </MDTypography>
                       </TableCell>
-                      <TableCell align="center" sx={{ width: "12%", minWidth: "90px" }}>
-                        <MDTypography variant="caption" color="text" fontWeight="medium">
-                          {dateText}
-                        </MDTypography>
+                      <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                        <MDBox display="flex" gap={0.5} justifyContent="center">
+                          <MDButton
+                            variant="gradient"
+                            color="warning"
+                            size="small"
+                            disabled={isDisabled}
+                            onClick={() => handleInvestigate(agentId, row.id || 1)}
+                            sx={{ py: 0.3, px: 1, fontSize: "0.65rem" }}
+                          >
+                            Investigate
+                          </MDButton>
+                          <MDButton
+                            variant="gradient"
+                            color="info"
+                            size="small"
+                            disabled={isDisabled}
+                            onClick={() => handleCallCustomer(row)}
+                            sx={{ py: 0.3, px: 1, fontSize: "0.65rem" }}
+                          >
+                            Call Customer
+                          </MDButton>
+                        </MDBox>
                       </TableCell>
                     </TableRow>
                   );
                 })}
-                {filteredData.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      <MDTypography variant="caption" color="text" py={3}>
-                        No records match the filter.
-                      </MDTypography>
-                    </TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
           </TableContainer>
@@ -274,6 +292,13 @@ function AgentRiskTable({ selectedAgentId, onSelectAgent }) {
 AgentRiskTable.propTypes = {
   selectedAgentId: PropTypes.string.isRequired,
   onSelectAgent: PropTypes.func.isRequired,
+  branchFilter: PropTypes.string,
+  onClearBranchFilter: PropTypes.func,
+};
+
+AgentRiskTable.defaultProps = {
+  branchFilter: "",
+  onClearBranchFilter: () => {},
 };
 
 export default AgentRiskTable;

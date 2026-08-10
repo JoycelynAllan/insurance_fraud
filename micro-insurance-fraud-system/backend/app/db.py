@@ -67,6 +67,8 @@ def auto_migrate_schema():
                 conn.execute(text("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(30);"))
                 conn.execute(text("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE;"))
                 conn.execute(text("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS branch VARCHAR(50);"))
+                conn.execute(text("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS language_pref VARCHAR(20) DEFAULT 'english';"))
+                conn.execute(text("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS agent_id VARCHAR(50);"))
                 conn.execute(text("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;"))
 
                 # Voice Call Logs table schema
@@ -87,6 +89,12 @@ def auto_migrate_schema():
             elif engine.dialect.name == "sqlite":
                 # SQLite column migrations
                 for col_stmt in [
+                    "ALTER TABLE users ADD COLUMN phone_number VARCHAR(30);",
+                    "ALTER TABLE users ADD COLUMN phone_verified BOOLEAN DEFAULT FALSE;",
+                    "ALTER TABLE users ADD COLUMN branch VARCHAR(50);",
+                    "ALTER TABLE users ADD COLUMN language_pref VARCHAR(20) DEFAULT 'english';",
+                    "ALTER TABLE users ADD COLUMN agent_id VARCHAR(50);",
+                    "ALTER TABLE users ADD COLUMN last_login TIMESTAMP;",
                     "ALTER TABLE fraud_alerts ADD COLUMN status VARCHAR(30) DEFAULT 'PENDING';",
                     "ALTER TABLE fraud_alerts ADD COLUMN acknowledged_at TIMESTAMP;",
                     "ALTER TABLE voice_call_logs ADD COLUMN called_at TIMESTAMP;"

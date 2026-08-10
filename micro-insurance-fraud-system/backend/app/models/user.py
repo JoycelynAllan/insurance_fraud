@@ -10,8 +10,10 @@ class User(Base):
     full_name = Column(String(100), nullable=False)
     email = Column(String(150), unique=True, nullable=False, index=True)
     password_hash = Column(Text, nullable=False)
-    role = Column(String(20), default="analyst", nullable=False)  # analyst, admin
+    role = Column(String(20), default="supervisor", nullable=False)  # supervisor, agent
     branch = Column(String(50), nullable=True)
+    language_pref = Column(String(20), default="english", nullable=False)
+    agent_id = Column(String(50), nullable=True)
     phone_number = Column(String(30), nullable=True)
     phone_verified = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

@@ -237,6 +237,9 @@ function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
     },
   });
 
+  const userRole = localStorage.getItem("mifds_user_role") || "supervisor";
+  const formattedRoleName = userRole === "agent" ? "Agent" : "Supervisor";
+
   return (
     <AppBar
       position={absolute ? "absolute" : navbarType}
@@ -278,7 +281,7 @@ function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
                     sx={{ mr: 1, display: "flex", alignItems: "center" }}
                   >
                     <Icon sx={{ mr: 0.5 }}>account_circle</Icon>
-                    {userName}
+                    {userName} — {formattedRoleName}
                   </MDTypography>
                   <IconButton
                     sx={navbarIconButton}
@@ -324,19 +327,21 @@ function DashboardNavbar({ absolute, light, isMini, title, showGhanaTime }) {
               >
                 <Icon sx={iconsStyle}>settings</Icon>
               </IconButton>
-              <IconButton
-                size="small"
-                disableRipple
-                color="inherit"
-                sx={navbarIconButton}
-                aria-controls="notification-menu"
-                aria-haspopup="true"
-                variant="contained"
-                onClick={handleOpenMenu}
-              >
-                <Icon sx={iconsStyle}>notifications</Icon>
-              </IconButton>
-              {renderMenu()}
+              {userRole !== "agent" && (
+                <IconButton
+                  size="small"
+                  disableRipple
+                  color="inherit"
+                  sx={navbarIconButton}
+                  aria-controls="notification-menu"
+                  aria-haspopup="true"
+                  variant="contained"
+                  onClick={handleOpenMenu}
+                >
+                  <Icon sx={iconsStyle}>notifications</Icon>
+                </IconButton>
+              )}
+              {userRole !== "agent" && renderMenu()}
             </MDBox>
           </MDBox>
         )}

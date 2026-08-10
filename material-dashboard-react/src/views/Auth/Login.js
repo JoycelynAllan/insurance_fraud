@@ -30,9 +30,15 @@ function Login() {
   const location = useLocation();
 
   useEffect(() => {
-    // If user is already authenticated, redirect immediately
-    if (localStorage.getItem("mifds_token")) {
-      navigate("/fraud");
+    // If user is already authenticated, redirect immediately based on role
+    const token = localStorage.getItem("mifds_token");
+    const role = localStorage.getItem("mifds_user_role");
+    if (token) {
+      if (role === "agent") {
+        navigate("/agent-profile");
+      } else {
+        navigate("/fraud");
+      }
     }
 
     // Check for success message from state (e.g. redirected from Register)
@@ -50,7 +56,6 @@ function Login() {
     setLoading(true);
 
     const apiBase = getApiBase();
-    console.log(`[Auth] Attempting login to: ${apiBase}/api/auth/login`);
 
     try {
       const response = await axios.post(`${apiBase}/api/auth/login`, {
@@ -58,23 +63,25 @@ function Login() {
         password,
       });
 
-      const { access_token, full_name, role } = response.data;
+      const { access_token, full_name, role, branch, agent_id } = response.data;
 
       // Store session details in localStorage
       localStorage.setItem("mifds_token", access_token);
       localStorage.setItem("mifds_user_name", full_name);
       localStorage.setItem("mifds_user_role", role);
+      if (branch) localStorage.setItem("mifds_user_branch", branch);
+      if (agent_id) localStorage.setItem("mifds_user_agent_id", agent_id);
 
-      // Redirect to dashboard
-      navigate("/fraud");
+      // Redirect based on role
+      if (role === "agent") {
+        navigate("/agent-profile");
+      } else {
+        navigate("/fraud");
+      }
     } catch (err) {
       console.error("[Auth Error - Login Failed]", err);
       if (err.response && err.response.data && err.response.data.detail) {
         setError(err.response.data.detail);
-      } else if (err.message === "Network Error" || !err.response) {
-        setError(
-          "Unable to connect to backend server. Render free tier may be waking up (cold start). Please wait ~30s and try again."
-        );
       } else {
         setError("Invalid email or password");
       }

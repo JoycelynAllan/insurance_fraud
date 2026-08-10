@@ -25,7 +25,7 @@ import MDButton from "components/MDButton";
 
 import { getApiBase } from "utils/apiConfig";
 
-function BranchHeatmap() {
+function BranchHeatmap({ onSelectBranch }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,26 +35,36 @@ function BranchHeatmap() {
     setError(null);
     try {
       const apiBase = getApiBase();
-      const response = await axios.get(`${apiBase}/api/agents/risk`);
+      const token = localStorage.getItem("mifds_token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${apiBase}/api/agents/risk`, { headers });
 
-      // Group by branch and calculate average risk score
       const branchGroups = {};
-      response.data.forEach((agent) => {
-        const branch = agent.branch || "Unknown";
+      (Array.isArray(response.data) ? response.data : []).forEach((agent) => {
+        const branch = agent.branch || "Accra";
+        const score = typeof agent.risk_score === "number" ? agent.risk_score : parseFloat(agent.risk_score) || 0;
+        const scorePct = score <= 1.0 ? score * 100 : score;
+        const isFlagged = scorePct >= 70.0 || agent.is_fraud;
+
         if (!branchGroups[branch]) {
-          branchGroups[branch] = { sum: 0, count: 0 };
+          branchGroups[branch] = { sum: 0, count: 0, flaggedCount: 0, maxRisk: 0 };
         }
-        branchGroups[branch].sum += agent.risk_score;
+        branchGroups[branch].sum += scorePct;
         branchGroups[branch].count += 1;
+        if (isFlagged) branchGroups[branch].flaggedCount += 1;
+        if (scorePct > branchGroups[branch].maxRisk) {
+          branchGroups[branch].maxRisk = scorePct;
+        }
       });
 
       const formattedData = Object.keys(branchGroups).map((branch) => ({
         branch,
-        avgRisk: parseFloat((branchGroups[branch].sum / branchGroups[branch].count).toFixed(2)),
+        avgRisk: parseFloat((branchGroups[branch].sum / branchGroups[branch].count).toFixed(1)),
         agentCount: branchGroups[branch].count,
+        flaggedCount: branchGroups[branch].flaggedCount,
+        maxRisk: parseFloat(branchGroups[branch].maxRisk.toFixed(1)),
       }));
 
-      // Sort alphabetically by branch
       formattedData.sort((a, b) => a.branch.localeCompare(b.branch));
       setData(formattedData);
     } catch (err) {
@@ -69,7 +79,6 @@ function BranchHeatmap() {
     fetchData();
   }, []);
 
-  // Custom Tooltip component for better visual styling matching dashboard
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const dataPoint = payload[0].payload;
@@ -83,14 +92,17 @@ function BranchHeatmap() {
             border: "1px solid #e0e0e0",
           }}
         >
-          <MDTypography variant="button" fontWeight="bold" display="block" mb={0.5}>
+          <MDTypography variant="button" fontWeight="bold" display="block" mb={0.5} color="dark">
             {dataPoint.branch} Branch
           </MDTypography>
           <MDTypography variant="caption" color="text" display="block">
-            Avg Risk Score: <strong>{dataPoint.avgRisk}%</strong>
+            Flagged Agents: <strong>{dataPoint.flaggedCount}</strong>
           </MDTypography>
           <MDTypography variant="caption" color="text" display="block">
-            Agents Monitored: <strong>{dataPoint.agentCount}</strong>
+            Highest Risk Score: <strong style={{ color: "#d32f2f" }}>{dataPoint.maxRisk}%</strong>
+          </MDTypography>
+          <MDTypography variant="caption" color="text" display="block">
+            Avg Risk Score: <strong>{dataPoint.avgRisk}%</strong>
           </MDTypography>
         </MDBox>
       );
@@ -116,31 +128,17 @@ function BranchHeatmap() {
         coloredShadow="warning"
       >
         <MDTypography variant="h6" color="white">
-          Branch Risk Distribution
+          Branch Risk Distribution (Click Bar to Filter)
         </MDTypography>
       </MDBox>
 
-      <MDBox
-        pt={3}
-        px={2}
-        pb={2}
-        flexGrow={1}
-        display="flex"
-        flexDirection="column"
-        justifyContent="center"
-      >
+      <MDBox pt={3} px={2} pb={2} flexGrow={1} display="flex" flexDirection="column" justifyContent="center">
         {loading ? (
           <MDBox display="flex" justifyContent="center" alignItems="center" height="240px">
             <CircularProgress color="warning" />
           </MDBox>
         ) : error ? (
-          <MDBox
-            display="flex"
-            flexDirection="column"
-            justifyContent="center"
-            alignItems="center"
-            height="240px"
-          >
+          <MDBox display="flex" flexDirection="column" justifyContent="center" alignItems="center" height="240px">
             <MDTypography variant="body2" color="text" mb={2}>
               {error}
             </MDTypography>
@@ -153,21 +151,25 @@ function BranchHeatmap() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
-                <XAxis
-                  dataKey="branch"
-                  stroke="#7b809a"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
+                <XAxis dataKey="branch" stroke="#7b809a" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="#7b809a" fontSize={12} tickLine={false} axisLine={false} unit="%" />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="avgRisk" fill="#f44336" radius={[4, 4, 0, 0]} barSize={40}>
+                <Bar
+                  dataKey="avgRisk"
+                  fill="#f44336"
+                  radius={[4, 4, 0, 0]}
+                  barSize={40}
+                  onClick={(entry) => {
+                    if (entry && entry.branch && onSelectBranch) {
+                      onSelectBranch(entry.branch);
+                    }
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
                   {data.map((entry, index) => {
-                    // Set red gradients/colors for high risk branches and oranges for moderate
-                    let barColor = "#ef5350"; // default medium-high red
-                    if (entry.avgRisk > 60) barColor = "#d32f2f"; // dark red
-                    else if (entry.avgRisk < 40) barColor = "#ff9800"; // orange
+                    let barColor = "#ef5350";
+                    if (entry.maxRisk >= 70) barColor = "#d32f2f";
+                    else if (entry.avgRisk < 40) barColor = "#4caf50";
                     return <Cell key={`cell-${index}`} fill={barColor} />;
                   })}
                 </Bar>
@@ -179,5 +181,13 @@ function BranchHeatmap() {
     </Card>
   );
 }
+
+BranchHeatmap.propTypes = {
+  onSelectBranch: PropTypes.func,
+};
+
+BranchHeatmap.defaultProps = {
+  onSelectBranch: () => {},
+};
 
 export default BranchHeatmap;

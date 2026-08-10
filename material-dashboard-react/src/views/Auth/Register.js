@@ -5,6 +5,7 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import FormControl from "@mui/material/FormControl";
+import FormHelperText from "@mui/material/FormHelperText";
 import axios from "axios";
 
 // Material Dashboard 2 React components
@@ -25,36 +26,47 @@ function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState("supervisor"); // supervisor or agent
   const [branch, setBranch] = useState("");
+  const [languagePref, setLanguagePref] = useState("english"); // english, twi, dagbani
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If user is already authenticated, redirect immediately
-    if (localStorage.getItem("mifds_token")) {
-      navigate("/fraud");
+    // If user is already authenticated, redirect immediately based on role
+    const token = localStorage.getItem("mifds_token");
+    const userRole = localStorage.getItem("mifds_user_role");
+    if (token) {
+      if (userRole === "agent") {
+        navigate("/agent-profile");
+      } else {
+        navigate("/fraud");
+      }
     }
   }, [navigate]);
 
   const validateForm = () => {
-    if (!fullName || !email || !password || !confirmPassword || !branch) {
-      return "All fields are required";
+    if (!fullName || !email || !password || !confirmPassword || !role) {
+      return "Please fill in all required fields.";
     }
 
-    // Basic email validation regex
+    if (role === "agent" && !branch) {
+      return "Branch office is required for Field Agents.";
+    }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return "Please enter a valid email address";
+      return "Please enter a valid email address.";
     }
 
     if (password.length < 8) {
-      return "Password must be at least 8 characters long";
+      return "Password must be at least 8 characters long.";
     }
 
     if (password !== confirmPassword) {
-      return "Passwords do not match";
+      return "Passwords do not match.";
     }
 
     return null;
@@ -72,17 +84,18 @@ function Register() {
 
     setLoading(true);
     const apiBase = getApiBase();
-    console.log(`[Auth] Attempting registration to: ${apiBase}/api/auth/register`);
 
     try {
       await axios.post(`${apiBase}/api/auth/register`, {
         full_name: fullName,
         email,
         password,
-        branch,
+        role,
+        branch: branch || undefined,
+        language_pref: languagePref,
       });
 
-      // Redirect to login with success message
+      // Redirect to login with requested success message
       navigate("/login", {
         state: { message: "Account created. Please log in." },
       });
@@ -90,10 +103,6 @@ function Register() {
       console.error("[Auth Error - Registration Failed]", err);
       if (err.response && err.response.data && err.response.data.detail) {
         setError(err.response.data.detail);
-      } else if (err.message === "Network Error" || !err.response) {
-        setError(
-          "Unable to connect to backend server. Render free tier may be waking up (cold start). Please wait ~30s and try again."
-        );
       } else {
         setError("Failed to register. Please try again.");
       }
@@ -117,10 +126,10 @@ function Register() {
           textAlign="center"
         >
           <MDTypography variant="h4" fontWeight="medium" color="white" mt={1}>
-            Join Fraud Monitor
+            Join MicroInsure
           </MDTypography>
           <MDTypography variant="caption" color="white" sx={{ mt: 1, display: "block" }}>
-            Register to gain fraud analysis access
+            Register to access your role dashboard
           </MDTypography>
         </MDBox>
         <MDBox pt={4} pb={3} px={3}>
@@ -172,34 +181,72 @@ function Register() {
                 required
               />
             </MDBox>
+
+            {/* Dropdown 1: Role Selection */}
             <MDBox mb={2}>
               <FormControl fullWidth size="medium">
-                <InputLabel id="branch-select-label" sx={{ lineBreak: "none" }}>
-                  Branch Office
-                </InputLabel>
+                <InputLabel id="role-select-label">I am a</InputLabel>
                 <Select
-                  labelId="branch-select-label"
-                  id="branch-select"
-                  value={branch}
-                  label="Branch Office"
-                  onChange={(e) => setBranch(e.target.value)}
+                  labelId="role-select-label"
+                  id="role-select"
+                  value={role}
+                  label="I am a"
+                  onChange={(e) => setRole(e.target.value)}
                   required
-                  sx={{
-                    height: "44px",
-                    display: "flex",
-                    alignItems: "center",
-                    paddingTop: "2px",
-                    fontSize: "0.875rem",
-                  }}
+                  sx={{ height: "44px" }}
                 >
-                  <MenuItem value="Accra">Accra</MenuItem>
-                  <MenuItem value="Kumasi">Kumasi</MenuItem>
-                  <MenuItem value="Tamale">Tamale</MenuItem>
-                  <MenuItem value="Takoradi">Takoradi</MenuItem>
-                  <MenuItem value="Cape_Coast">Cape Coast</MenuItem>
+                  <MenuItem value="supervisor">Supervisor / Branch Manager</MenuItem>
+                  <MenuItem value="agent">Field Agent</MenuItem>
                 </Select>
               </FormControl>
             </MDBox>
+
+            {/* Dropdown 2: Branch Selection (Required for Field Agent) */}
+            {role === "agent" && (
+              <MDBox mb={2}>
+                <FormControl fullWidth size="medium">
+                  <InputLabel id="branch-select-label">Branch</InputLabel>
+                  <Select
+                    labelId="branch-select-label"
+                    id="branch-select"
+                    value={branch}
+                    label="Branch"
+                    onChange={(e) => setBranch(e.target.value)}
+                    required
+                    sx={{ height: "44px" }}
+                  >
+                    <MenuItem value="Accra">Accra</MenuItem>
+                    <MenuItem value="Kumasi">Kumasi</MenuItem>
+                    <MenuItem value="Tamale">Tamale</MenuItem>
+                    <MenuItem value="Takoradi">Takoradi</MenuItem>
+                    <MenuItem value="Cape_Coast">Cape Coast</MenuItem>
+                  </Select>
+                </FormControl>
+              </MDBox>
+            )}
+
+            {/* Dropdown 3: Customer Call Language Selection */}
+            <MDBox mb={2}>
+              <FormControl fullWidth size="medium">
+                <InputLabel id="language-select-label">Customer Call Language</InputLabel>
+                <Select
+                  labelId="language-select-label"
+                  id="language-select"
+                  value={languagePref}
+                  label="Customer Call Language"
+                  onChange={(e) => setLanguagePref(e.target.value)}
+                  sx={{ height: "44px" }}
+                >
+                  <MenuItem value="english">English</MenuItem>
+                  <MenuItem value="twi">Twi</MenuItem>
+                  <MenuItem value="dagbani">Dagbani</MenuItem>
+                </Select>
+                <FormHelperText>
+                  This is the language used when calling your customers about missed payments
+                </FormHelperText>
+              </FormControl>
+            </MDBox>
+
             <MDBox mt={4} mb={1}>
               <MDButton
                 variant="gradient"
@@ -212,6 +259,7 @@ function Register() {
                 {loading ? "Registering..." : "register"}
               </MDButton>
             </MDBox>
+
             <MDBox mt={3} mb={1} textAlign="center">
               <MDTypography variant="button" color="text">
                 Already have an account?{" "}

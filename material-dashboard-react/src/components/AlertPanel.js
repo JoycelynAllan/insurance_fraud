@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import axios from "axios";
 
 // @mui material components
 import Card from "@mui/material/Card";
@@ -10,8 +11,9 @@ import CircularProgress from "@mui/material/CircularProgress";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDBadge from "components/MDBadge";
+import MDButton from "components/MDButton";
 
-import { getWsBase } from "utils/apiConfig";
+import { getApiBase, getWsBase } from "utils/apiConfig";
 
 function AlertPanel() {
   const [alerts, setAlerts] = useState([]);
@@ -87,6 +89,25 @@ function AlertPanel() {
       }
     };
   }, []);
+
+  const handleAcknowledge = async (alertId, agentId) => {
+    try {
+      const apiBase = getApiBase();
+      const token = localStorage.getItem("mifds_token");
+      await axios.post(
+        `${apiBase}/api/alerts/${alertId || 1}/acknowledge`,
+        { status: "INVESTIGATING" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Real-time local state update
+      setAlerts((prev) =>
+        prev.map((a) => (a.agent_id === agentId ? { ...a, status: "INVESTIGATING" } : a))
+      );
+    } catch (err) {
+      console.error("Error acknowledging alert:", err);
+    }
+  };
 
   const getStatusColor = () => {
     if (status === "Connected") return "success";
@@ -174,59 +195,81 @@ function AlertPanel() {
               </MDTypography>
             </MDBox>
           ) : (
-            alerts.map((alert, index) => (
-              <MDBox key={alert.agent_id || index} mb={2}>
-                <MDBox
-                  p={2}
-                  borderRadius="lg"
-                  sx={{
-                    border: "1px solid",
-                    borderColor: "error.main",
-                    backgroundColor: "rgba(244, 67, 54, 0.04)",
-                  }}
-                >
-                  <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                    <MDBox display="flex" alignItems="center">
-                      <MDTypography variant="button" fontWeight="bold" color="dark" sx={{ mr: 1 }}>
-                        {alert.agent_id}
-                      </MDTypography>
-                      <MDBadge
-                        badgeContent={alert.status || "PENDING"}
-                        color={getBadgeColor(alert.status)}
-                        variant="gradient"
-                        size="xs"
-                      />
-                    </MDBox>
-                    <MDTypography variant="caption" color="text" fontWeight="medium">
-                      {formatDate(alert.created_at || alert.timestamp)}
-                    </MDTypography>
-                  </MDBox>
-                  <MDTypography
-                    variant="caption"
-                    color="dark"
-                    fontWeight="medium"
-                    display="block"
-                    mb={0.5}
+            alerts.map((alert, index) => {
+              const numericScore = typeof alert.risk_score === "number" ? alert.risk_score : parseFloat(alert.risk_score) || 0;
+              const scorePct = numericScore <= 1.0 ? numericScore * 100 : numericScore;
+              const isHighRisk = scorePct >= 70.0;
+              const isPending = (alert.status || "PENDING").toUpperCase() === "PENDING";
+
+              return (
+                <MDBox key={alert.agent_id || index} mb={2}>
+                  <MDBox
+                    p={2}
+                    borderRadius="lg"
+                    sx={{
+                      border: "1px solid",
+                      borderColor: isHighRisk ? "error.main" : "warning.main",
+                      backgroundColor: isHighRisk ? "rgba(244, 67, 54, 0.04)" : "rgba(255, 152, 0, 0.04)",
+                    }}
                   >
-                    {alert.flag_reason}
-                  </MDTypography>
-                  <MDBox display="flex" justifyContent="space-between" alignItems="center" mt={1}>
-                    <MDTypography variant="caption" color="text">
-                      Risk Score:
+                    <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                      <MDBox display="flex" alignItems="center">
+                        <MDTypography variant="button" fontWeight="bold" color="dark" sx={{ mr: 1 }}>
+                          {alert.agent_id}
+                        </MDTypography>
+                        <MDBadge
+                          badgeContent={alert.status || "PENDING"}
+                          color={getBadgeColor(alert.status)}
+                          variant="gradient"
+                          size="xs"
+                        />
+                      </MDBox>
+                      <MDTypography variant="caption" color="text" fontWeight="medium">
+                        {formatDate(alert.created_at || alert.timestamp)}
+                      </MDTypography>
+                    </MDBox>
+                    <MDTypography
+                      variant="caption"
+                      color="dark"
+                      fontWeight="medium"
+                      display="block"
+                      mb={0.5}
+                    >
+                      {alert.flag_reason}
                     </MDTypography>
-                    <MDTypography variant="caption" color="error" fontWeight="bold">
-                      {typeof alert.risk_score === "number"
-                        ? alert.risk_score <= 1.0
-                          ? (alert.risk_score * 100).toFixed(1)
-                          : alert.risk_score.toFixed(1)
-                        : alert.risk_score}
-                      %
-                    </MDTypography>
+                    <MDBox display="flex" justifyContent="space-between" alignItems="center" mt={1}>
+                      <MDTypography variant="caption" color="text">
+                        Risk Score:
+                      </MDTypography>
+                      <MDTypography
+                        variant="caption"
+                        color={isHighRisk ? "error" : "warning"}
+                        fontWeight="bold"
+                        sx={{ fontSize: "0.95rem" }}
+                      >
+                        {scorePct.toFixed(1)}%
+                      </MDTypography>
+                    </MDBox>
+
+                    {/* Acknowledge button for PENDING cards */}
+                    {isPending && (
+                      <MDBox mt={1.5} display="flex" justifyContent="flex-end">
+                        <MDButton
+                          variant="gradient"
+                          color="warning"
+                          size="small"
+                          onClick={() => handleAcknowledge(alert.id, alert.agent_id)}
+                          sx={{ py: 0.3, px: 1.5, fontSize: "0.65rem" }}
+                        >
+                          Acknowledge
+                        </MDButton>
+                      </MDBox>
+                    )}
                   </MDBox>
+                  {index < alerts.length - 1 && <Divider sx={{ my: 1.5 }} />}
                 </MDBox>
-                {index < alerts.length - 1 && <Divider sx={{ my: 1.5 }} />}
-              </MDBox>
-            ))
+              );
+            })
           )}
         </MDBox>
       </MDBox>

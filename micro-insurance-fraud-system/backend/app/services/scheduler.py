@@ -4,9 +4,10 @@ from datetime import datetime, timedelta
 from backend.app.db import SessionLocal
 from backend.app.models.transaction import Transaction, TransactionFeature
 from backend.app.models.alert import FraudAlert
+from backend.app.models.user import User
 from backend.app.ml.fraud_detection import score_transaction
 from backend.app.routes.alerts import broadcast_alert
-from backend.app.services.voice_service import make_outbound_call
+from backend.app.services.voice_service import make_outbound_call, schedule_retry
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +17,9 @@ scheduler = AsyncIOScheduler()
 async def run_fraud_check_job():
     """
     Background job that runs every 5 minutes.
-    Loads the 10 most recent transactions from the database,
-    scores them, and persists + broadcasts an alert for any transaction with risk_score >= 70.
+    Loads recent transactions from the database, scores them,
+    persists + broadcasts PENDING alerts for risk_score >= 70%,
+    and schedules multilingual voice/SMS reminders for missed payments.
     """
     db = SessionLocal()
     called_phones = set()
@@ -45,23 +47,31 @@ async def run_fraud_check_job():
             # Score transaction using the two-stage model pipeline
             scored = score_transaction(feature_dict)
             risk_score = float(scored['risk_score'])
-            
-            # Outbound reminder trigger
-            if bool(scored.get("is_fraud")) and tx.remittance_status == "missed":
-                if tx.customer_phone and tx.customer_phone not in called_phones:
+            score_pct = risk_score * 100.0 if risk_score <= 1.0 else risk_score
+
+            # Look up customer/agent language preference from users table
+            user_rec = db.query(User).filter(
+                (User.agent_id == tx.agent_id) | (User.branch == tx.branch)
+            ).first()
+            customer_lang = user_rec.language_pref if (user_rec and hasattr(user_rec, 'language_pref') and user_rec.language_pref) else "english"
+
+            # Trigger automated retry schedule if remittance_status == "missed"
+            if tx.remittance_status == "missed" and tx.customer_phone:
+                if tx.customer_phone not in called_phones:
                     called_phones.add(tx.customer_phone)
                     try:
-                        logger.info(f"Triggering outbound Africa's Talking voice reminder for customer {tx.customer_phone}")
-                        make_outbound_call(
+                        logger.info(f"Triggering automated reminder retry schedule for customer {tx.customer_phone} (Lang: {customer_lang})")
+                        schedule_retry(
                             customer_phone=tx.customer_phone,
                             agent_id=tx.agent_id,
-                            amount=float(tx.amount)
+                            amount=float(tx.amount),
+                            language=customer_lang,
+                            attempt=1
                         )
                     except Exception as ve:
-                        logger.error(f"Voice reminder call trigger failed: {str(ve)}")
+                        logger.error(f"Voice reminder schedule retry failed: {str(ve)}")
 
             # Broadcast and persist if risk score >= 70 (or 0.70)
-            score_pct = risk_score * 100.0 if risk_score <= 1.0 else risk_score
             if score_pct >= 70.0:
                 # Check if a PENDING alert already exists for this agent
                 pending_alert = db.query(FraudAlert).filter(
