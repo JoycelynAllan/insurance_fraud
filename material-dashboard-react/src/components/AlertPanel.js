@@ -65,8 +65,14 @@ function AlertPanel() {
               );
               const updated = [data, ...filtered];
               updated.sort((a, b) => {
-                const scoreA = typeof a.risk_score === "number" ? a.risk_score : parseFloat(a.risk_score) || 0;
-                const scoreB = typeof b.risk_score === "number" ? b.risk_score : parseFloat(b.risk_score) || 0;
+                const scoreA =
+                  typeof a.risk_score === "number"
+                    ? a.risk_score
+                    : parseFloat(a.risk_score) || 0;
+                const scoreB =
+                  typeof b.risk_score === "number"
+                    ? b.risk_score
+                    : parseFloat(b.risk_score) || 0;
                 return scoreB - scoreA;
               });
               return updated;
