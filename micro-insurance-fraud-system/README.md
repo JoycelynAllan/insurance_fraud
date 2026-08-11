@@ -4,13 +4,13 @@ This repository serves as the master project scaffold linking all components of 
 
 ## Project Structure
 
-The project integrates machine learning model training, a Flask-based inference backend, a responsive React dashboard, and a voice agent platform:
+The project integrates machine learning model training, a FastAPI inference backend, a responsive React dashboard, and Africa's Talking voice/SMS integration:
 
 ```
 micro-insurance-fraud-system/
-├── backend/          # ML backend (Flask + Isolation Forest & fraud models)
+├── backend/          # ML backend (FastAPI + Isolation Forest & XGBoost fraud models)
 ├── frontend/         # UI Dashboard (React-based admin panel)
-├── voice/            # Voice agent interaction platform
+├── voice/            # Voice and SMS automation via Africa's Talking
 ├── data/             # Dataset storage
 │   └── synthetic/    # Synthetic transaction data for testing and local runs
 ├── docker-compose.yml
@@ -21,11 +21,10 @@ micro-insurance-fraud-system/
 
 ## Component Origins (Cloned Repositories)
 
-The system integrates three open-source codebases cloned at the root level of the workspace:
+The system integrates open-source components cloned at the root level of the workspace:
 
-1. **`AI-Enabled-Fraud-Detection/`** — Flask-based API service featuring Isolation Forest anomaly detection. (MIT License)
+1. **`AI-Enabled-Fraud-Detection/`** — Inference API service featuring Isolation Forest anomaly detection. (MIT License)
 2. **`material-dashboard-react/`** — Material Dashboard React template used for the system analytics dashboard UI. (MIT License)
-3. **`dograh/`** — Voice agent and conversational system used for interactive voice fraud response. (BSD-2-Clause License)
 
 ---
 

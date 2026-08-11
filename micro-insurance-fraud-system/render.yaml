@@ -23,12 +23,6 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         value: https://frauddetection-three.vercel.app
-      - key: DOGRAH_API_URL
-        value: http://localhost:8000
-      - key: DOGRAH_API_TOKEN
-        placeholder: true
-      - key: DOGRAH_WORKFLOW_ID
-        value: "1"
       - key: AT_USERNAME
         value: sandbox
       - key: AT_API_KEY

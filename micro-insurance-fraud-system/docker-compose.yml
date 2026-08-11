@@ -28,7 +28,6 @@ services:
       - REDIS_URL=${REDIS_URL}
       - AT_API_KEY=${AT_API_KEY}
       - AT_USERNAME=${AT_USERNAME}
-      - DOGRAH_URL=${DOGRAH_URL}
       - SECRET_KEY=${SECRET_KEY}
     depends_on:
       - postgres
