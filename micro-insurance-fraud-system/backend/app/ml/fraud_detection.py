@@ -233,8 +233,8 @@ def score_transaction(data: dict) -> dict:
     # 7. Scale risk score to 0-100
     risk_score = float(xgb_prob * 100)
     
-    # 8. Determine boolean is_fraud threshold on risk_score (threshold >= 50.0)
-    is_fraud = bool(risk_score >= 50.0)
+    # 8. Determine boolean is_fraud threshold on risk_score (threshold >= 70.0)
+    is_fraud = bool(risk_score >= 70.0)
     
     # 9. Dynamic flag reasoning based on dominant features
     reasons = []

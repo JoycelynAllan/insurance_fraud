@@ -71,7 +71,8 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         from backend.app.models.alert import FraudAlert
         pending_alerts = db.query(FraudAlert).filter(
-            FraudAlert.status.in_(["PENDING", "INVESTIGATING"])
+            FraudAlert.status.in_(["PENDING", "INVESTIGATING"]),
+            FraudAlert.risk_score >= 70.0
         ).order_by(FraudAlert.risk_score.desc()).all()
         
         for a in pending_alerts:

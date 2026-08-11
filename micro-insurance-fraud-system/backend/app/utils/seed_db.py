@@ -112,28 +112,20 @@ async def seed_if_empty():
         alert_count = db.query(FraudAlert).count()
         if alert_count == 0:
             logger.info("Fraud alerts table is empty. Seeding PENDING alerts for high-risk agents...")
-            records = db.query(Transaction, TransactionFeature).join(
-                TransactionFeature, Transaction.id == TransactionFeature.transaction_id
-            ).all()
-
-            agent_latest = {}
-            for tx, feat in records:
-                aid = tx.agent_id
-                if aid not in agent_latest or tx.timestamp > agent_latest[aid][0].timestamp:
-                    agent_latest[aid] = (tx, feat)
+            from backend.app.routes.agents import compute_all_agent_risk_scores
+            agent_scores = compute_all_agent_risk_scores(db)
 
             seeded_alerts = 0
-            for aid, (tx, feat) in agent_latest.items():
-                score = float(feat.risk_score) if feat.risk_score is not None else 0.0
-                score_pct = score * 100.0 if score <= 1.0 else score
-                if score_pct >= 70.0:
-                    reason = feat.flag_reason or f"Risk score {score_pct:.1f}% — automated ML detection"
+            for agent in agent_scores:
+                aid = agent["agent_id"]
+                risk_score = agent["risk_score"]
+                if risk_score >= 70.0:
                     alert_obj = FraudAlert(
                         agent_id=aid,
-                        transaction_id=tx.id,
-                        risk_score=score_pct,
-                        flag_reason=reason,
-                        branch=tx.branch,
+                        transaction_id=agent.get("latest_tx_id"),
+                        risk_score=risk_score,
+                        flag_reason=agent["flag_reason"],
+                        branch=agent["branch"],
                         status="PENDING",
                         alerted_at=datetime.utcnow(),
                         acknowledged=False

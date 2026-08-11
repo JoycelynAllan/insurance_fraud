@@ -52,24 +52,21 @@ function AlertPanel() {
           }
 
           if (data.type === "alert" || !data.type) {
+            const scoreNum =
+              typeof data.risk_score === "number"
+                ? data.risk_score
+                : parseFloat(data.risk_score) || 0;
+            const scorePct = scoreNum <= 1.0 ? scoreNum * 100 : scoreNum;
+            if (scorePct < 70.0) return;
+
             setAlerts((prevAlerts) => {
               const filtered = prevAlerts.filter(
-                (a) =>
-                  data.id &&
-                  String(a.id) !== String(data.id) &&
-                  data.agent_id &&
-                  String(a.agent_id) !== String(data.agent_id)
+                (a) => String(a.agent_id) !== String(data.agent_id)
               );
               const updated = [data, ...filtered];
               updated.sort((a, b) => {
-                const scoreA =
-                  typeof a.risk_score === "number"
-                    ? a.risk_score
-                    : parseFloat(a.risk_score) || 0;
-                const scoreB =
-                  typeof b.risk_score === "number"
-                    ? b.risk_score
-                    : parseFloat(b.risk_score) || 0;
+                const scoreA = typeof a.risk_score === "number" ? a.risk_score : parseFloat(a.risk_score) || 0;
+                const scoreB = typeof b.risk_score === "number" ? b.risk_score : parseFloat(b.risk_score) || 0;
                 return scoreB - scoreA;
               });
               return updated;

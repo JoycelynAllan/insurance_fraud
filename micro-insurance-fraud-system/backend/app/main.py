@@ -47,6 +47,18 @@ async def lifespan(app: FastAPI):
     model.is_trained = True
     fraud_detection._model_instance = model
     
+    # Task 5 — Add a score consistency check on startup
+    test_input = {
+        "remittance_delay_hours": 0,
+        "cash_ratio": 0.2,
+        "deviation_from_agent_mean": 10.0,
+        "missed_consecutive_count": 0,
+        "amount": 200.0
+    }
+    sanity_result = fraud_detection.score_transaction(test_input)
+    logger.info(f"Sanity check score: {sanity_result['risk_score']} — expected < 40")
+    assert sanity_result["risk_score"] < 40, f"Scorer sanity check failed — low-risk input scored {sanity_result['risk_score']} (expected < 40)"
+    
     # Start the background scheduler
     from backend.app.services.scheduler import scheduler
     scheduler.start()
